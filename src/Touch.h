@@ -45,10 +45,17 @@ public:
         Wire1.begin(TP_SDA_PIN, TP_SCL_PIN, 400000);
         Wire1.setTimeOut(5);
         Wire1.beginTransmission(0x15);
-        _cst816Present = (Wire1.endTransmission() == 0);
+        _cst816Present = (Wire1.endTransmission(true) == 0);
+        if (_cst816Present) {
+            // Disable CST816D auto-sleep (reg 0xFE = 0xFF) so it never powers down its I2C slave
+            Wire1.beginTransmission(0x15);
+            Wire1.write(0xFE);
+            Wire1.write(0xFF);
+            Wire1.endTransmission(true);
+        }
         Serial.printf("[touch] CST816D I2C touchscreen (SDA=%d, SCL=%d, INT=%d): %s\n",
                       TP_SDA_PIN, TP_SCL_PIN, TP_INT_PIN,
-                      _cst816Present ? "detected" : "not detected");
+                      _cst816Present ? "detected (auto-sleep disabled)" : "not detected");
 #endif
 #else
         uint16_t baseline = 0;
@@ -76,9 +83,18 @@ public:
     static uint16_t raw() { return _lastRaw; }
     static void setImmediateSingleTap(bool en) {
         _immediateSingleTap = en;
-        _wasDown = false;
-        _longFired = false;
+        // If finger is still held down from the Long Press that entered/exited the app,
+        // keep _wasDown=true and _longFired=true so releasing the finger does NOT fire
+        // a phantom Short tap or a second Long press!
+        if (_wasDown || _lastScrDown) {
+            _wasDown = true;
+            _longFired = true;
+        } else {
+            _wasDown = false;
+            _longFired = false;
+        }
         _taps = 0;
+        _guardUntil = millis() + 180;
     }
 
     static TouchEvent poll() {
@@ -90,11 +106,12 @@ public:
 #endif
         bool scrDown = _lastScrDown;
 #if HAS_CST816_TOUCH
-        if (_cst816Present && (now - _lastI2cPollMs >= 10)) {
+        if (_cst816Present && (now - _lastI2cPollMs >= 8)) {
             _lastI2cPollMs = now;
             Wire1.beginTransmission(0x15);
             Wire1.write(0x01);
-            if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)6) == 6) {
+            // Always use endTransmission(true) so a NACK sends STOP and never wedges ESP32-S3 Wire1!
+            if (Wire1.endTransmission(true) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)6) == 6) {
                 uint8_t buf[6];
                 for (int i = 0; i < 6; ++i) buf[i] = Wire1.read();
                 uint8_t fingers   = buf[1] & 0x0F;
@@ -102,6 +119,11 @@ public:
                 scrDown = (fingers == 1) && (eventFlag != 0x01);
             } else {
                 scrDown = false;
+            }
+            if (scrDown != _lastScrDown) {
+                Serial.printf("[touch-diag] t=%lu int=%d scrDown=%d->%d wasDown=%d longFired=%d\n",
+                              now, digitalRead(TP_INT_PIN), (int)_lastScrDown, (int)scrDown,
+                              (int)_wasDown, (int)_longFired);
             }
             _lastScrDown = scrDown;
         }
@@ -114,9 +136,11 @@ public:
 #endif
 
         if ((long)(now - _guardUntil) < 0) {
-            _wasDown   = touched;
-            _longFired = false;
-            _taps      = 0;
+            if (!touched) {
+                _wasDown   = false;
+                _longFired = false;
+            }
+            _taps = 0;
             return TouchEvent::None;
         }
 

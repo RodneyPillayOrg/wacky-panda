@@ -113,7 +113,10 @@ public:
         if (_gameState == GameState::IDLE || _gameState == GameState::WIN_ANIMATION) {
             _startSpin();
         } else if (_gameState == GameState::SPINNING) {
-            _quickStop();
+            // Only allow quick-stop after the 350ms Reel Spin Breathe & initial launch have completed
+            if (millis() - _spinStartMs >= 350) {
+                _quickStop();
+            }
         }
     }
 
