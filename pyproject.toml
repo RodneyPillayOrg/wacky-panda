@@ -1,0 +1,54 @@
+# Python tooling for this firmware repo.
+#
+# This is NOT a Python package - the deliverable is an ESP32 image. The file exists so the
+# helper scripts in scripts/ have one declared, locked set of dependencies instead of a
+# README asking you to pip-install four things by hand.
+#
+#     uv sync                                   create .venv/ and install
+#     uv run scripts/dev.py flash               run a script in it
+#     uv run scripts/device_fs.py backup --host <ip>
+#
+# uv creates .venv/ at the project root, which is exactly where scripts/prebuild.py looks,
+# so a PlatformIO build picks these up with no further wiring. `uv run` also syncs first,
+# so in practice `uv run ...` on a fresh clone is the only command needed.
+#
+# Without uv, create the same .venv/ by hand and install the list below - NOT `pip install
+# -e .`, which needs a build backend this deliberately does not have:
+#
+#     python -m venv .venv
+#     .venv/Scripts/pip install requests pyserial pillow fonttools     (or .venv/bin/pip)
+
+[project]
+name = "smoltv-pro-tools"
+version = "0"
+description = "Build, asset and device tooling for the SmolTV Pro firmware"
+# tomllib, used by build_assets.py to read scripts/assets.toml.
+requires-python = ">=3.11"
+
+dependencies = [
+    # device_fs.py, dev.py - the device HTTP API
+    "requests>=2.28",
+    # device_serial.py - USB serial monitor and wiring diagnostic
+    "pyserial>=3.5",
+    # build_assets.py - image rendering and font subsetting/instancing
+    "pillow>=10.0",
+    "fonttools>=4.40",
+    # build_assets.py - the resvg binary, for rasterising the icon SVGs. Pinned exactly:
+    # it decides the pixels in the committed LvImagesGen.h, so a version bump has to be a
+    # deliberate act with a re-render and a diff, not something a resolver does quietly.
+    "resvg-cli==0.44.0",
+    # lv_font_gen.py - the rasteriser behind the LVGL font tables. Pinned exactly: the
+    # autohinter decides every glyph pixel in the committed LvFontsGen.h, so a bump must be
+    # a deliberate act verified by scripts/lv_font_gen_verify.py.
+    "freetype-py==2.5.1",
+    # build_assets.py - verify TLS against the OS trust store rather than certifi's
+    # bundle. On a network that terminates TLS at a proxy, the chain ends in a CA the
+    # machine trusts but certifi has never heard of, so every asset fetch fails without
+    # this. It is imported lazily, inside the fetch, which is how it got missed once.
+    "truststore>=0.9",
+]
+
+[tool.uv]
+# Nothing here is importable and there is no build backend, so do not try to build or
+# install the project itself - just resolve the dependencies into .venv/.
+package = false

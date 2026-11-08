@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-update">
+  <div class="panel">
+    <!-- OUTSIDE the form, deliberately. The device's multipart parser expects the FIRST part to
+         be the file, so any field submitted ahead of it breaks the upload. Keeping the chooser
+         out of the form means it is never submitted at all - it only picks the URL. -->
+    <div class="targets">
+      <label><input type="radio" name="target" id="target-app" data-spec-id="fw-target-app" checked> Firmware</label>
+      <label><input type="radio" name="target" id="target-fs" data-spec-id="fw-target-fs"> Filesystem</label>
+    </div>
+    <label id="keepwifi-row">
+      <input type="checkbox" id="keepwifi" data-spec-id="fw-keepwifi" checked disabled>
+      Keep Wi-Fi settings
+    </label>
+    <form id="fwForm" method="POST" action="" enctype="multipart/form-data">
+      <p class="lead" id="lead">Choose the firmware and click 'Update.' Please wait for the upgrade to finish automatically. Avoid clicking again.</p>
+      <label class="btn" for="fwFile" data-spec-id="fw-choose" id="chooseLabel">Choose Firmware</label>
+      <input type="file" id="fwFile" name="firmware" accept=".bin,.bin.gz" required>
+      <div><span id="fname" data-spec-id="fw-filename"></span></div>
+      <button type="button" class="btn" id="updBtn" data-spec-id="fw-update">Update</button>
+      <div id="progWrap" class="meter" data-spec-id="fw-progress">
+        <i id="progBar"></i>
+        <div id="progTxt">0%</div>
+      </div>
+      <p id="status" class="hint" data-spec-id="fw-status"></p>
+    </form>
+  </div>
+<script>
+(function () {
+  'use strict';
+  var form = document.getElementById('fwForm');
+  var fileInput = document.getElementById('fwFile');
+  var updBtn = document.getElementById('updBtn');
+  var fname = document.getElementById('fname');
+  var progWrap = document.getElementById('progWrap');
+  var progBar = document.getElementById('progBar');
+  var progTxt = document.getElementById('progTxt');
+  var status = document.getElementById('status');
+  var timer = null;
+  var pct = 0;
+
+  // -- which partition -----------------------------------------------------------------
+  var targetFs = document.getElementById('target-fs');
+  var targetApp = document.getElementById('target-app');
+  var keepRow = document.getElementById('keepwifi-row');
+  var keepWifi = document.getElementById('keepwifi');
+  var lead = document.getElementById('lead');
+  var chooseLabel = document.getElementById('chooseLabel');
+
+  var LEAD_APP = "Choose the firmware and click 'Update.' Please wait for the upgrade to " +
+                 'finish automatically. Avoid clicking again.';
+  var LEAD_FS = "Choose littlefs.bin and click 'Update.' This REPLACES the whole " +
+                'filesystem: every config file goes with it, and only the Wi-Fi settings can ' +
+                'be carried across. There is no rollback for this one.';
+
+  function isFs() { return targetFs.checked; }
+
+  function applyTarget() {
+    var fs = isFs();
+    // Disabled rather than hidden: the choice stays visible, so it is discoverable, and its
+    // greyed state says what it is for. A firmware write never touches /.sys, so there is
+    // nothing for it to keep.
+    keepWifi.disabled = !fs;
+    keepRow.classList.toggle('disabled', !fs);
+    lead.textContent = fs ? LEAD_FS : LEAD_APP;
+    chooseLabel.textContent = fs ? 'Choose Filesystem' : 'Choose Firmware';
+  }
+  targetFs.addEventListener('change', applyTarget);
+  targetApp.addEventListener('change', applyTarget);
+  applyTarget();
+
+  function uploadUrl() {
+    if (!isFs()) { return '/update'; }
+    return '/update?target=fs' + (keepWifi.checked && !keepWifi.disabled ? '&keepwifi=1' : '');
+  }
+
+  // Guard against any path that would trigger native form submission.
+  form.addEventListener('submit', function (e) { e.preventDefault(); });
+
+  fileInput.addEventListener('change', function () {
+    if (!fileInput.files || fileInput.files.length === 0) { return; }
+    // Throwaway form-data object; built and discarded with no network effect.
+    var throwaway = new FormData(form);
+    void throwaway;
+    fname.textContent = ' ' + fileInput.files[0].name;
+    updBtn.style.display = 'inline-block';
+  });
+
+  function setBar(v) {
+    progBar.style.width = v + '%';
+    progTxt.textContent = v + '%';
+  }
+
+  updBtn.addEventListener('click', function () {
+    if (!fileInput.files || fileInput.files.length === 0) { return; }
+    var file = fileInput.files[0];
+
+    updBtn.disabled = true;
+    fileInput.disabled = true;
+    progWrap.style.display = 'block';
+
+    // Cosmetic progress timer: 1000 ms period, +4 per tick, cancelled on the
+    // first tick that exceeds 100. Never reflects real upload progress.
+    pct = 0;
+    timer = setInterval(function () {
+      pct += 4;
+      if (pct <= 100) {
+        setBar(pct);
+      } else {
+        clearInterval(timer);
+        timer = null;
+      }
+    }, 1000);
+
+    // Park the device on Clock before a FILESYSTEM write. The Picture app holds a GIF open
+    // across frames, and the filesystem is unmounted the instant the upload starts - no lock
+    // helps with that. Fire and forget: a device that cannot switch apps is one this upload is
+    // meant to rescue, so a failure here must not stop the attempt.
+    if (isFs()) {
+      try { fetch('/set?open_app=Clock', { cache: 'no-store' }).catch(function () {}); }
+      catch (e) {}
+    }
+
+    // Body: the form (already containing the file under "firmware") plus the
+    // same file appended again under "firmware" - the file goes twice.
+    var body = new FormData(form);
+    body.append('firmware', file, file.name);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', uploadUrl(), true);
+    // Real upload progress events are attached but deliberately ignored.
+    xhr.upload.addEventListener('progress', function () {});
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== XMLHttpRequest.DONE) { return; }
+      if (xhr.status === 200) {
+        if (timer) { clearInterval(timer); timer = null; }
+        setBar(100);
+        status.textContent = isFs()
+          ? (keepWifi.checked
+              ? 'Filesystem written. Rebooting - it should rejoin the same network.'
+              : 'Filesystem written. Rebooting into AP mode: join "SmolTV PRO" to set it up.')
+          : 'Upload finished successfully.';
+        fileInput.disabled = false;
+        setTimeout(function () { location.href = '/'; }, 30000);
+      } else {
+        // Timer is NOT cancelled on failure; it ticks to 100 on its own.
+        status.textContent = 'Error during upload.';
+        fileInput.disabled = false;
+      }
+    };
+    xhr.send(body);
+  });
+})();
+</script>
+</body>
+</html>

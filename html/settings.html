@@ -1,0 +1,520 @@
+<!doctype html>
+<!-- Settings UI — variant D (top tabs, one page shown at a time; ticket #7,
+     swipe paging removed by ticket #25 — it didn't work on real hardware).
+     A pure static asset over the JSON contract (ticket #14): sections and fields
+     render from GET /api/settings (schema + values), saves POST a flat value map.
+     Swap this file (and repack the filesystem image) to change the UI — zero
+     firmware changes. Choice settings render as dropdowns from a {label: value}
+     catalog, inline or URL-sourced — the timezone is one, fed by zones.json
+     (IANA -> POSIX, nayarsystems/posix_tz_db, MIT). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>smolbase settings</title>
+<link rel="stylesheet" href="/smolbase.css">
+<style>
+  h1 { font-size: 1.1rem; margin: 0; }
+  .field { margin-bottom: 0.9rem; }
+
+  .d-wrap { max-width: 34rem; margin: 0 auto; padding: 1rem 0 3rem; }
+  .d-dev { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; padding: 0 1rem 0.75rem; font-size: 0.8rem; align-items: baseline; }
+  .d-dev .mono { color: var(--muted); }
+  .d-tabs { display: flex; gap: 0.35rem; overflow-x: auto; padding: 0 1rem 0.6rem;
+    border-bottom: 1px solid var(--line); scrollbar-width: none; }
+  .d-tabs::-webkit-scrollbar { display: none; }
+  .d-tabs button { border-radius: 999px; padding: 0.35rem 0.85rem; white-space: nowrap; font-size: 0.85rem; }
+  .d-tabs button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .dz-head { font-size: 0.95rem; color: var(--danger); margin: 1.6rem 0 0.5rem; }
+  .nets { list-style: none; margin: 0.6rem 0 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .nets li + li { border-top: 1px solid var(--line); }
+  .nets .row { width: 100%; text-align: left; border: 0; border-radius: 0; background: none;
+    display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.55rem 0.8rem; }
+  .nets .join { display: none; padding: 0 0.8rem 0.8rem; }
+  .nets li.open .join { display: block; }
+  .d-page { display: none; padding: 1.25rem 1rem 0; }
+  .d-page.on { display: block; }
+  .d-page h1 { margin-bottom: 1rem; }
+  .dz-box { border: 1px solid var(--danger); background: var(--danger-bg); border-radius: 8px; padding: 1rem; }
+</style>
+</head>
+<body>
+<div id="app"><p class="hint" style="padding:1.5rem 1rem">Loading settings…</p></div>
+
+<script src="/smolbase.js"></script>
+<script>
+"use strict";
+/* esc(), setMsg(), toast() and the [data-eye] password toggle come from
+   smolbase.js. Feedback model (tickets #39/#41/#42): toast for quick save
+   SUCCESSES; inline .msg for progress and for failures (which clear when
+   their input changes, never on a timer); full-page handoff when the device
+   is going away. */
+const app = document.getElementById("app");
+
+/* Going-away handoff (ticket #42): replaces the ENTIRE page — header, tabs,
+   everything — because "this page will stop responding" must not leave live
+   buttons around. `reconnect` adds a button where the device comes back
+   reachable (join: the .local name survives; update: same address); forget
+   and factory reset return as an AP, so instructions ARE the action there. */
+function handoff(title, lead, hint, reconnect) {
+  app.innerHTML = `<div class="d-wrap" style="padding:3rem 1rem 0; text-align:center">
+    <h1>${esc(title)}</h1>
+    <p style="font-weight:600; margin:0.9rem 0 0.5rem">${lead}</p>
+    <p class="hint" style="max-width:26rem; margin:0 auto">${hint}</p>
+    ${reconnect ? `<button class="primary" style="margin-top:1.5rem" id="hreload">${esc(reconnect.label)}</button>` : ""}
+  </div>`;
+  const b = document.getElementById("hreload");
+  if (b) b.addEventListener("click", () => { location.href = reconnect.href; });
+}
+
+let STATUS = {}, SCHEMA = [], META = {}, OPTS = {}; // OPTS: optionsUrl -> {label: value}
+let SECRETS = {}; // GET /api/secrets: {key: {label, hint, set}} — never values (ADR 0003)
+
+/* Brightness readout: percentage of the 0–255 firmware range (ticket #43). */
+const briPct = v => +v === 0 ? "off" : Math.max(1, Math.round(v * 100 / 255)) + "%";
+
+/* ---- field renderers (from the schema; "choice" renders a dropdown from its
+   inline or URL-sourced {label: value} catalog, "brightness" gets a slider) ---- */
+function renderField(s) {
+  const id = "f_" + s.key;
+  if (s.type === "choice") {
+    // A choice pairs the user's LABEL with the machine's VALUE (ticket #57);
+    // both are POSTed together as {key: value, key_name: label}. An unknown
+    // stored pick (e.g. a zone missing from a newer catalog) stays selectable.
+    const opts = s.options || OPTS[s.optionsUrl] || {};
+    const labels = Object.keys(opts);
+    if (s.valueLabel && !(s.valueLabel in opts)) labels.unshift(s.valueLabel);
+    return `<div class="field"><label for="${id}">${esc(s.label)}</label>
+      <select id="${id}" data-key="${esc(s.key)}" data-type="choice">${labels.map(l =>
+        `<option value="${esc(l in opts ? opts[l] : s.value)}" data-label="${esc(l)}"${
+          l === s.valueLabel ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>
+      ${s.optionsUrl ? `<p class="hint">${labels.length} options from <span class="mono">${esc(s.optionsUrl)}</span>; the matching value is saved with the name.</p>` : ""}</div>`;
+  }
+  if (s.type === "bool") {
+    return `<div class="field"><label style="color:var(--ink)"><input type="checkbox" id="${id}"
+      data-key="${esc(s.key)}" data-type="bool"${s.value ? " checked" : ""}> ${esc(s.label)}</label></div>`;
+  }
+  if (s.type === "int") {
+    if (s.key === "brightness") {
+      // Shown as 0–100% (0–255 is a firmware concept); 0 reads "off" because
+      // it really does switch the backlight off. Stored value/API stay 0–255.
+      // Only true 0 may say "off" (1 must not round down to it), and 255
+      // reads exactly 100%.
+      return `<div class="field"><label for="${id}">${esc(s.label)} — <span id="${id}_out" class="mono">${briPct(s.value)}</span></label>
+        <input type="range" id="${id}" data-key="${esc(s.key)}" data-type="int"
+          min="${s.min}" max="${s.max}" value="${s.value}"
+          oninput="document.getElementById('${id}_out').textContent=briPct(this.value)"></div>`;
+    }
+    return `<div class="field"><label for="${id}">${esc(s.label)}</label>
+      <input type="number" id="${id}" data-key="${esc(s.key)}" data-type="int"
+        min="${s.min}" max="${s.max}" value="${s.value}">
+      <p class="hint">${s.min} – ${s.max}</p></div>`;
+  }
+  if (s.type === "color") {
+    return `<div class="field"><label for="${id}">${esc(s.label)}</label>
+      <input type="color" id="${id}" data-key="${esc(s.key)}" data-type="string" value="${esc(s.value)}"></div>`;
+  }
+  return `<div class="field"><label for="${id}">${esc(s.label)}</label>
+    <input type="text" id="${id}" data-key="${esc(s.key)}" data-type="string" value="${esc(s.value)}"></div>`;
+}
+
+/* Collect the staged values inside one section page into a flat map. */
+function collect(page) {
+  const out = {};
+  page.querySelectorAll("[data-key]").forEach(el => {
+    const t = el.dataset.type;
+    if (t === "bool") out[el.dataset.key] = el.checked;
+    else if (t === "int") out[el.dataset.key] = Math.round(Number(el.value) || 0);
+    else if (t === "choice") {
+      const o = el.selectedOptions[0];
+      out[el.dataset.key] = el.value;
+      out[el.dataset.key + "_name"] = o ? o.dataset.label : "";
+    }
+    else out[el.dataset.key] = el.value;
+  });
+  return out;
+}
+
+/* postSettings() comes from smolbase.js. */
+
+/* ---- non-schema pages ---- */
+
+/* Secrets section (ADR 0003): renders the app-declared Secret Descriptors as
+   write-only rows — input always blank, a set/not-set badge from the
+   existence map, Set posts the value, Clear two-click-arms then posts null.
+   Undeclared entries (no label) are curl-only and never render. */
+const declaredSecrets = () => Object.keys(SECRETS).filter(k => SECRETS[k] && SECRETS[k].label);
+
+function secretsPage() {
+  return `<p class="hint" style="margin:-0.4rem 0 1rem">Write-only: a stored value can be
+    replaced or cleared, but never read back — not by this page, not by anyone on the network.</p>`
+    + declaredSecrets().map((k, i) => {
+      const s = SECRETS[k];
+      return `<div class="field" data-sk="${esc(k)}">
+        <label for="sk${i}">${esc(s.label)} — <span class="mono sk-state">${s.set ? "set ●" : "not set"}</span></label>
+        <div class="pw"><input id="sk${i}" type="password" autocomplete="off"
+          placeholder="${s.set ? "enter a new value to replace" : "enter value"}">
+          <button type="button" class="eye" data-eye="sk${i}" aria-label="Show value">${EYE_OFF}</button></div>
+        ${s.hint ? `<p class="hint">${esc(s.hint)}</p>` : ""}
+        <button class="primary" style="margin-top:0.4rem" data-skset="${esc(k)}">Set</button>
+        <button data-skclear="${esc(k)}"${s.set ? "" : " disabled"}>Clear</button>
+        <p class="msg sk-msg"></p></div>`;
+    }).join("");
+}
+
+function wifiPage() {
+  const net = STATUS.apMode
+    ? `<p>The device is in <b>setup mode</b>, serving its own access point.</p>`
+    : `<div class="field"><label>Wi-Fi connection</label>
+        <p style="margin:0"><b>Connected to ${esc(STATUS.ssid || "(unknown network)")}</b>
+          <span class="mono" style="color:var(--muted)">${
+          STATUS.rssi != null ? esc(STATUS.rssi) + " dBm" : ""}</span></p>
+        <p class="hint">IP <span class="mono">${esc(STATUS.ip || "?")}</span> ·
+          reachable at <span class="mono">${esc(STATUS.name || "smolbase")}.local</span></p></div>`;
+  const name = esc(STATUS.name || "smolbase-XXXX");
+  return net + `<div class="field"><label>Join a different network…</label>
+    <p class="hint" style="margin-top:0">Joining saves the new credentials and restarts — settings and timezone
+    survive, only the network changes. If the password is wrong the device can't connect at boot and falls back
+    to its <span class="mono">${name}</span> setup access point after ~20 s.</p>
+    <button id="wfscan">Scan for networks</button>
+    <div id="wflist"></div><p class="msg" id="wfmsg"></p></div>
+    <h2 class="dz-head">Setup mode</h2>
+    <div class="dz-box">
+    <p class="hint" style="margin-top:0">Forgets the stored Wi-Fi credentials — settings survive — and restarts
+    into the <span class="mono">${name}</span> setup access point, where the portal picks the new network.</p>
+    <button class="danger" id="wfforget">Forget Wi-Fi &amp; restart into setup</button>
+    <p class="msg" id="wfferr"></p></div>`;
+}
+
+function updatePage() {
+  return `<div class="field"><label>Image type</label>
+    <label style="color:var(--ink);display:inline-block;margin-right:1.2rem">
+      <input type="radio" name="uptarget" value="fw" checked> Firmware</label>
+    <label style="color:var(--ink);display:inline-block">
+      <input type="radio" name="uptarget" value="fs"> Filesystem (web assets)</label>
+    <p class="hint" id="uphint">Streams into the inactive app slot; a failed upload leaves the running firmware untouched.</p></div>
+    <div class="field"><label for="fwfile">Image file (.bin)</label>
+    <input type="file" id="fwfile" accept=".bin">
+    <p class="hint">Device restarts after a successful update. The screen freezes during flashing — that's normal.</p></div>
+    <button class="primary" id="fwgo">Upload &amp; install</button>
+    <p class="msg" id="fwmsg"></p>
+    <p class="hint">Worth knowing now: the firmware has a built-in recovery page at
+    <a href="/recover" class="mono">/recover</a> that can upload both firmware and filesystem
+    images — it keeps working even if this page is wiped or broken.</p>
+    <h2 class="dz-head">Danger zone</h2>
+    <div class="dz-box">
+    <p class="hint" style="margin-top:0">Erases <b>everything</b> — Wi-Fi credentials, all settings, and stored
+      secrets — returning the device to setup mode as shipped.
+      Type <b class="mono">reset</b> to confirm.</p>
+    <div class="field"><input type="text" id="dzconfirm" autocomplete="off" placeholder="reset"></div>
+    <button class="danger" id="dzgo" disabled>Factory reset</button>
+    <p class="msg" id="dzerr"></p></div>`;
+}
+
+/* ---- variant D shell ---- */
+function render() {
+  const heapKb = STATUS.heapFree ? Math.round(STATUS.heapFree / 1024) + " kB free" : "";
+  const sections = []; // [name, html, savable]
+  for (const sec of ["system", "app"]) {
+    // The App tab is the free UI registration buys (stance A', ticket #34):
+    // it renders every app-section setting, prefixed by the app's registered
+    // note when there is one. An app that owns its UX suppresses the whole
+    // tab via the contract's appTabSuppressed — the settings stay in the API.
+    if (sec === "app" && META.appTabSuppressed) continue;
+    const items = SCHEMA.filter(s => s.section === sec);
+    if (!items.length) continue;
+    const note = sec === "app" && META.appNote
+      ? `<p class="hint" style="margin:-0.4rem 0 1rem">${esc(META.appNote)}</p>` : "";
+    sections.push([sec === "system" ? "System" : "App",
+      note + items.map(renderField).join(""), true]);
+  }
+  // Hidden entirely when the app declares no Secret Descriptors (ADR 0003):
+  // the section is registration-bought UI, like the App tab.
+  if (declaredSecrets().length) sections.push(["Secrets", secretsPage(), false]);
+  sections.push(["WiFi", wifiPage(), false]);
+  sections.push(["Update", updatePage(), false]);
+
+  app.innerHTML = `<div class="d-wrap">
+    <div class="d-dev"><b>${esc(STATUS.name || "smolbase")}.local</b>
+      <span class="mono">${esc(STATUS.ip || "")}</span>
+      <span class="mono">${heapKb}</span>
+      <span class="mono">fw ${esc(STATUS.fwVersion || "?")}</span></div>
+    <div class="d-tabs" role="tablist">${sections.map(([n], i) =>
+      `<button role="tab" aria-selected="${i === 0}" class="${i === 0 ? "on" : ""}"
+        data-t="${i}">${n}</button>`).join("")}</div>
+    <div class="d-pages" id="dPages">${sections.map(([n, html, savable], i) =>
+      `<section class="d-page${i === 0 ? " on" : ""}" data-sec="${n}"><h1>${n + (n === "System" || n === "App" ? " settings" : "")}</h1>${html}
+        ${savable ? `<button class="primary savebtn" style="margin:0.5rem 0 0.2rem">Save ${n.toLowerCase()}</button>
+        <p class="msg savemsg" style="margin-bottom:1rem"></p>` : ""}
+      </section>`).join("")}</div>
+  </div>`;
+
+  const pages = [...document.getElementById("dPages").children];
+  const tabs = [...app.querySelectorAll("[data-t]")];
+  const setTab = i => {
+    tabs.forEach((t, j) => {
+      t.classList.toggle("on", i === j);
+      t.setAttribute("aria-selected", i === j);
+    });
+    pages.forEach((p, j) => p.classList.toggle("on", i === j));
+  };
+  tabs.forEach(t => t.addEventListener("click", () => setTab(+t.dataset.t)));
+
+  // per-section save
+  app.querySelectorAll(".savebtn").forEach(b => b.addEventListener("click", async () => {
+    const msg = b.nextElementSibling; // the .savemsg under this button
+    b.disabled = true;
+    try {
+      const r = await postSettings(collect(b.closest(".d-page")));
+      setMsg(msg, "");
+      toast(r.changed ? "Saved" : "No changes to save");
+    } catch (e) {
+      setMsg(msg, "Save failed — " + e.message, true);
+    }
+    b.disabled = false;
+  }));
+
+  // Clearing contract (ticket #41): a failure message clears as soon as the
+  // input it described changes — it must not outlive that state.
+  const clearOnEdit = e => {
+    const t = e.target;
+    const page = t.closest(".d-page");
+    if (!page) return;
+    if (t.matches("[data-key]")) {
+      const m = page.querySelector(".savemsg");
+      if (m) setMsg(m, "");
+    }
+    if (t.id === "fwfile" || t.name === "uptarget") setMsg(document.getElementById("fwmsg"), "");
+    if (t.id === "dzconfirm") setMsg(document.getElementById("dzerr"), "");
+    if (t.matches("#wflist input")) setMsg(document.getElementById("wfmsg"), "");
+    const skf = t.closest("[data-sk]");
+    if (skf) { const m = skf.querySelector(".sk-msg"); if (m) setMsg(m, ""); }
+  };
+  app.addEventListener("input", clearOnEdit);
+  app.addEventListener("change", clearOnEdit);
+
+  // Secrets (ADR 0003): Set posts {key: value}; Clear arms, then posts
+  // {key: null}. State badges update in place — never a value round-trip.
+  const postSecret = body => fetch("/api/secrets", { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); });
+  app.querySelectorAll("[data-skset]").forEach(b => b.addEventListener("click", async () => {
+    const field = b.closest("[data-sk]");
+    const inp = field.querySelector("input"), msg = field.querySelector(".sk-msg");
+    if (!inp.value) { setMsg(msg, "Enter a value first.", true); return; }
+    b.disabled = true;
+    try {
+      await postSecret({ [b.dataset.skset]: inp.value });
+      inp.value = "";
+      field.querySelector(".sk-state").textContent = "set ●";
+      field.querySelector("[data-skclear]").disabled = false;
+      setMsg(msg, "");
+      toast("Secret stored");
+    } catch (e) {
+      setMsg(msg, "Store failed — " + e.message, true);
+    }
+    b.disabled = false;
+  }));
+  app.querySelectorAll("[data-skclear]").forEach(b => b.addEventListener("click", async () => {
+    if (!b.dataset.armed) {
+      b.dataset.armed = "1";
+      b.textContent = "Really clear? Click again";
+      return;
+    }
+    const field = b.closest("[data-sk]"), msg = field.querySelector(".sk-msg");
+    b.disabled = true; // stays disabled on success: the key is now not-set
+    try {
+      await postSecret({ [b.dataset.skclear]: null });
+      field.querySelector(".sk-state").textContent = "not set";
+      setMsg(msg, "");
+      toast("Secret cleared");
+    } catch (e) {
+      setMsg(msg, "Clear failed — " + e.message, true);
+      b.disabled = false;
+    }
+    delete b.dataset.armed;
+    b.textContent = "Clear";
+  }));
+
+  // firmware / filesystem update
+  const upTarget = () => app.querySelector('[name="uptarget"]:checked').value;
+  app.querySelectorAll('[name="uptarget"]').forEach(r => r.addEventListener("change", () => {
+    document.getElementById("uphint").textContent = upTarget() === "fs"
+      ? "Replaces ALL web assets and settings.json — settings revert to defaults; WiFi credentials survive."
+      : "Streams into the inactive app slot; a failed upload leaves the running firmware untouched.";
+  }));
+  const fwgo = document.getElementById("fwgo");
+  fwgo.addEventListener("click", async () => {
+    const f = document.getElementById("fwfile").files[0];
+    const msg = document.getElementById("fwmsg");
+    if (!f) { msg.textContent = "Choose a .bin file first."; return; }
+    fwgo.disabled = true;
+    setMsg(msg, "Uploading… don't power off the device.");
+    try {
+      const fd = new FormData();
+      fd.append("file", f, f.name);
+      const isFs = upTarget() === "fs";
+      const r = await fetch("/api/update" + (isFs ? "?target=fs" : ""), { method: "POST", body: fd });
+      if (r.ok) {
+        handoff("Updating", `${isFs ? "Filesystem" : "Firmware"} update accepted — the device is restarting.`,
+          `${isFs ? "Web assets replaced; settings reverted to defaults (Wi-Fi credentials survive). " : ""}` +
+          `Give it ~15 s, then reload — the device comes back at this same address.`,
+          { label: "Reload this page", href: location.href });
+      }
+      else {
+        let detail = "";
+        try { detail = (await r.json()).error || ""; } catch (e) { /* non-JSON error body */ }
+        const text = "Update failed (HTTP " + r.status + (detail ? "): " + detail : ").");
+        setMsg(msg, text, true);
+      }
+    } catch (e) {
+      setMsg(msg, "Upload failed — " + e.message, true);
+    }
+    fwgo.disabled = false;
+  });
+
+  // wifi: scan, inline join, forget-into-setup (ticket #30)
+  let WNETS = [], wOpen = null, wTimer = null;
+  const wlist = document.getElementById("wflist");
+  const wmsg = document.getElementById("wfmsg");
+  const renderNets = scanning => {
+    const prev = wlist.querySelector("li.open input"); // keep a half-typed password across poll re-renders
+    const keepVal = prev ? prev.value : "";
+    wlist.innerHTML = (WNETS.length ? `<ul class="nets">${WNETS.map((n, i) =>
+      `<li class="${n.ssid === wOpen ? "open" : ""}">
+        <button type="button" class="row" aria-expanded="${n.ssid === wOpen}">
+          <span>${esc(n.ssid)}${n.secure ? " &#128274;" : ""}</span>
+          <span class="mono" style="color:var(--muted)">${n.rssi} dBm</span></button>
+        <div class="join">${n.secure
+          ? `<div class="pw"><input id="wpw${i}" type="password" autocomplete="off" placeholder="password">
+             <button type="button" class="eye" data-eye="wpw${i}" aria-label="Show password">${EYE_OFF}</button></div>`
+          : `<p class="hint" style="margin-top:0">Open network — no password needed.</p>`}
+        <button class="primary" style="margin-top:0.5rem" data-join="${i}">Join ${esc(n.ssid)}</button>
+        </div></li>`).join("")}</ul>` : "")
+      + (scanning ? `<p class="hint">Scanning…</p>`
+                  : (WNETS.length ? "" : `<p class="hint">No networks found — rescan.</p>`));
+    const cur = wlist.querySelector("li.open input");
+    if (cur && keepVal) cur.value = keepVal;
+    wlist.querySelectorAll(".row").forEach((b, i) => b.addEventListener("click", () => {
+      wOpen = wOpen === WNETS[i].ssid ? null : WNETS[i].ssid;
+      renderNets(scanning);
+      const inp = wlist.querySelector("li.open input");
+      if (inp) inp.focus();
+    }));
+    // Enter in the password field submits the join (ticket #40)
+    wlist.querySelectorAll(".join input[type=password]").forEach(inp =>
+      inp.addEventListener("keydown", e => {
+        if (e.key === "Enter") inp.closest(".join").querySelector("[data-join]").click();
+      }));
+    wlist.querySelectorAll("[data-join]").forEach(b => b.addEventListener("click", async () => {
+      const i = +b.dataset.join;
+      const pw = document.getElementById("wpw" + i);
+      b.disabled = true;
+      setMsg(wmsg, "Joining " + WNETS[i].ssid + "…");
+      try {
+        const r = await fetch("/api/wifi", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ssid: WNETS[i].ssid, pass: pw ? pw.value : "" }) });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        clearTimeout(wTimer);
+        const host = STATUS.name || "smolbase";
+        handoff("WiFi", `Restarting to join ${esc(WNETS[i].ssid)}…`,
+          `This page will stop responding while the device switches networks (its IP may change,
+           but <span class="mono">${esc(host)}.local</span> survives). If the password was wrong,
+           the device comes back as its <span class="mono">${esc(host)}</span> setup access point
+           after ~20 s instead — join it to try again.`,
+          { label: `Reconnect via ${host}.local`, href: `http://${host}.local/settings.html` });
+      } catch (e) {
+        setMsg(wmsg, "Join failed — " + e.message, true);
+        b.disabled = false;
+      }
+    }));
+  };
+  const wpoll = async kick => {
+    try {
+      const j = await fetch("/api/wifi/scan" + (kick ? "?refresh=1" : "")).then(r => r.json());
+      WNETS = j.networks || [];
+      renderNets(j.status !== "done");
+      if (j.status !== "done") wTimer = setTimeout(() => wpoll(false), 2500);
+    } catch (e) {
+      setMsg(wmsg, "Scan failed — " + e.message, true);
+    }
+  };
+  document.getElementById("wfscan").addEventListener("click", () => { clearTimeout(wTimer); wpoll(true); });
+
+  // forget wifi: two-click arm, then POST and hand off to setup mode
+  const wff = document.getElementById("wfforget");
+  wff.addEventListener("click", async () => {
+    if (!wff.dataset.armed) {
+      wff.dataset.armed = "1";
+      wff.textContent = "Really forget Wi-Fi? Click again";
+      return;
+    }
+    wff.disabled = true;
+    try {
+      const r = await fetch("/api/wifi/forget", { method: "POST" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      clearTimeout(wTimer);
+      handoff("Setup mode", "Credentials cleared — restarting into setup mode.",
+        `Join the <span class="mono">${esc(STATUS.name || "smolbase-XXXX")}</span> Wi-Fi access
+         point and the setup portal will open to pick a network. Settings are untouched.
+         This page will stop responding.`, null);
+    } catch (e) {
+      setMsg(document.getElementById("wfferr"), "Forget failed — " + e.message, true);
+      wff.disabled = false;
+      delete wff.dataset.armed;
+      wff.innerHTML = "Forget Wi-Fi &amp; restart into setup";
+    }
+  });
+
+  // factory reset with typed confirmation
+  const dzc = document.getElementById("dzconfirm");
+  const dzgo = document.getElementById("dzgo");
+  dzc.addEventListener("input", () => { dzgo.disabled = dzc.value.trim().toLowerCase() !== "reset"; });
+  dzgo.addEventListener("click", async () => {
+    dzgo.disabled = true;
+    try {
+      const r = await fetch("/api/factory-reset", { method: "POST" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      handoff("Factory reset", "Everything erased — the device is restarting into setup mode.",
+        `Join its <span class="mono">smolbase-XXXX</span> Wi-Fi access point (a custom hostname is
+         gone with the reset — the exact name is on the device's screen) and the setup portal will
+         open to pick a network. Wi-Fi credentials, settings, and secrets are gone; the first boot
+         takes a beat longer while radio calibration regenerates. This page will stop responding.`,
+        null);
+    } catch (e) {
+      setMsg(document.getElementById("dzerr"), "Reset failed — " + e.message, true);
+      dzgo.disabled = false;
+    }
+  });
+}
+
+async function init() {
+  try {
+    const [st, se, sk] = await Promise.all([
+      fetch("/api/status").then(r => r.json()),
+      fetch("/api/settings").then(r => r.json()),
+      // Older firmwares answer {key: true}; boolean entries have no label,
+      // so the Secrets section simply stays hidden there.
+      fetch("/api/secrets").then(r => r.ok ? r.json() : {}).catch(() => ({})),
+    ]);
+    STATUS = st || {};
+    SECRETS = sk || {};
+    SCHEMA = (se && se.settings) || [];
+    META = { appNote: se && se.appNote, appTabSuppressed: !!(se && se.appTabSuppressed) };
+    // URL-sourced choice catalogs (e.g. /zones.json for tz): fetch each
+    // distinct URL once; a failed catalog degrades to the stored pick only.
+    const urls = [...new Set(SCHEMA.filter(s => s.type === "choice" && s.optionsUrl)
+      .map(s => s.optionsUrl))];
+    await Promise.all(urls.map(u =>
+      fetch(u).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+        .then(j => { OPTS[u] = j || {}; })));
+    render();
+  } catch (e) {
+    app.innerHTML = `<p class="hint" style="padding:1.5rem 1rem">Failed to load settings — ${esc(e.message)}.
+      Is the device reachable? <button onclick="location.reload()">Retry</button></p>`;
+  }
+}
+init();
+</script>
+</body>
+</html>

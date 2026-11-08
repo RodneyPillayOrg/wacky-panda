@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07131d">
+<title>SmolTV PRO Setup</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-portal">
+<div class="wrap">
+  <div class="hero">
+    <h1>AP Mode Setup</h1>
+    <p class="lead">Save city, timezone, and Wi-Fi in three quick steps.</p>
+    <div class="pills">
+      <div class="pill active" id="pill1"><div class="t">1. City</div><div class="s">Save weather city</div></div>
+      <div class="pill" id="pill2"><div class="t">2. Timezone</div><div class="s">Save local offset</div></div>
+      <div class="pill" id="pill3"><div class="t">3. Wi-Fi</div><div class="s">Scan and connect</div></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="t" id="toastTitle"></div>
+    <div class="s" id="toastText"></div>
+  </div>
+
+  <div class="panel" id="step1">
+    <h2>Step 1. Save city</h2>
+    <p class="pnote">Enter a city name for weather and local time. It is looked up once the device joins Wi-Fi.</p>
+    <label class="fld" for="cityInput">City Name</label>
+    <input type="text" id="cityInput" placeholder="Durban" autocomplete="off" data-spec-id="city-input">
+    <div class="presets" id="presets"></div>
+    <div class="hint">Saving city will also start a Wi-Fi scan for step 3.</div>
+    <div class="actions">
+      <button type="button" class="btn ghost" id="citySkip" data-spec-id="city-skip">Skip</button>
+      <button type="button" class="btn" id="citySave" data-spec-id="city-save">Save City</button>
+    </div>
+    <div class="confirm" id="cityConfirm"><b>Saved city:</b> <span id="cityConfirmVal"></span></div>
+  </div>
+
+  <div class="panel hidden" id="step2">
+    <h2>Step 2. Save timezone</h2>
+    <p class="pnote">Choose the timezone offset used where the device will run.</p>
+    <label class="fld" for="tzSelect">Timezone</label>
+    <select id="tzSelect" data-spec-id="tz-select"></select>
+    <div class="hint">Timezone is saved immediately and step 3 stays available.</div>
+    <div class="actions">
+      <button type="button" class="btn ghost" id="tzSkip" data-spec-id="tz-skip">Skip</button>
+      <button type="button" class="btn" id="tzSave" data-spec-id="tz-save">Save Timezone</button>
+    </div>
+    <div class="confirm" id="tzConfirm"><b>Saved timezone:</b> <span id="tzConfirmVal"></span></div>
+  </div>
+
+  <div class="panel hidden" id="step3">
+    <h2>Step 3. Join Wi-Fi</h2>
+    <p class="pnote">Select a scanned SSID or type one manually. Open Wi-Fi does not need a password. Encrypted Wi-Fi needs at least 8 characters.</p>
+    <div class="scanrow">
+      <select id="wifiSelect" data-spec-id="wifi-select"><option value="">Loading...</option></select>
+      <button type="button" class="btn ghost" id="wifiScan" data-spec-id="wifi-scan">Scan Wi-Fi</button>
+    </div>
+    <label class="fld" for="wifiSsid">SSID</label>
+    <input type="text" id="wifiSsid" placeholder="Select or input Wi-Fi SSID" autocomplete="off" data-spec-id="wifi-ssid">
+    <div id="pwRow">
+      <label class="fld" for="wifiPassword">Password</label>
+      <div class="pwfield">
+        <input type="password" id="wifiPassword" placeholder="At least 8 characters" data-spec-id="wifi-password">
+        <button type="button" class="pweye" id="wifiPasswordEye" data-spec-id="wifi-password-eye"
+                aria-label="Show password" aria-pressed="false"></button>
+      </div>
+    </div>
+    <div class="hint" id="wifiHint">Scan Wi-Fi first or type the SSID manually.</div>
+    <div class="hint">Saving Wi-Fi will reboot the device and try to connect right away.</div>
+    <div class="actions">
+      <button type="button" class="btn" id="wifiSave" data-spec-id="wifi-save">Save Wi-Fi And Reboot</button>
+    </div>
+  </div>
+
+  <div class="result" id="resultPanel">
+    <div class="t">Saved. The device is rebooting now.</div>
+    <p>When the screen shows a new IP address, first reconnect your phone or computer to <span id="resultSsid">the Wi-Fi you saved above</span>.</p>
+    <code>Then open: http://&lt;IP shown on screen&gt;</code>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---- toast -------------------------------------------------------------
+  var toast = $('toast');
+  function clearToast() {
+    toast.style.display = 'none';
+    toast.classList.remove('warn');
+  }
+  function showToast(title, text, warn) {
+    toast.classList.toggle('warn', !!warn);
+    $('toastTitle').textContent = title;
+    $('toastText').textContent = text;
+    toast.style.display = 'block';
+  }
+
+  // ---- wizard step visibility ---------------------------------------------
+  var step = 1;
+  function setStep(n) {
+    if (n > step) { step = n; }
+    if (step >= 2) { $('step2').classList.remove('hidden'); }
+    if (step >= 3) { $('step3').classList.remove('hidden'); }
+    for (var i = 1; i <= 3; i++) {
+      var pill = $('pill' + i);
+      pill.classList.toggle('active', i === step);
+      pill.classList.toggle('done', i < step);
+    }
+  }
+
+  // Move the user on. A save used to leave them looking at the panel they had just finished,
+  // with the next step unhidden somewhere below the fold - on a phone that is a scroll they
+  // have to work out for themselves.
+  //
+  // Focus follows the scroll so keyboard and screen-reader users land in the same place. The
+  // first control in each remaining step is a <select>, and focusing one does not open it, so
+  // this cannot hijack a tap or pop up the on-screen keyboard.
+  function goToStep(n) {
+    setStep(n);
+    var panel = $('step' + n);
+    if (!panel) { return; }
+    scrollTo_(panel);
+    var target = panel.querySelector('select, input, button');
+    if (target) {
+      try { target.focus({ preventScroll: true }); } catch (e) { target.focus(); }
+    }
+  }
+
+  // smooth where supported, an instant jump where it is not
+  function scrollTo_(el) {
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    catch (e) { el.scrollIntoView(); }
+  }
+
+  // ---- XHR helper (bare URLs, no cache-buster, no special cache mode) -----
+  function xhrGet(url, done) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== XMLHttpRequest.DONE) { return; }
+      done(xhr.status, xhr.responseText);
+    };
+    xhr.onerror = function () {};
+    xhr.send();
+  }
+  function ok2xx(status) { return status >= 200 && status < 300; }
+
+  // ---- password reveal -----------------------------------------------------
+  // Same glyphs and wiring as index.html. Stroked with currentColor so the button's colour
+  // states carry the icon with them.
+  var EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"' +
+    ' stroke-linecap="round" aria-hidden="true">' +
+    '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_SHUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"' +
+    ' stroke-linecap="round" aria-hidden="true">' +
+    '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>' +
+    '<path d="M3 3l18 18"/></svg>';
+
+  (function () {
+    var inp = $('wifiPassword'), btn = $('wifiPasswordEye');
+    btn.innerHTML = EYE_OPEN;
+    btn.addEventListener('click', function () {
+      var reveal = inp.type === 'password';
+      inp.type = reveal ? 'text' : 'password';
+      btn.innerHTML = reveal ? EYE_SHUT : EYE_OPEN;
+      btn.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+      btn.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+    });
+  })();
+
+  // ---- step 1: city --------------------------------------------------------
+  var PRESETS = ['Durban', 'Seoul', 'Tokyo', 'Singapore', 'London', 'Paris', 'Berlin',
+    'Rome', 'Madrid', 'Amsterdam', 'New York', 'Los Angeles', 'Chicago',
+    'Toronto', 'Sydney'];
+  var presetsBox = $('presets');
+  PRESETS.forEach(function (city, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = city;
+    b.setAttribute('data-spec-id', 'city-preset-' + i);
+    b.addEventListener('click', function () {
+      clearToast();
+      var inp = $('cityInput');
+      inp.value = city;
+      inp.focus();
+      inp.select();
+    });
+    presetsBox.appendChild(b);
+  });
+
+  $('citySkip').addEventListener('click', function () {
+    clearToast();
+    goToStep(2);
+    // Cleared again by scanWifi, so it is never actually painted.
+    showToast('City skipped', 'Step 1 was skipped. You can continue with timezone selection.', false);
+    scanWifi();
+  });
+
+  $('citySave').addEventListener('click', function () {
+    clearToast();
+    var inp = $('cityInput');
+    inp.classList.remove('err');
+    var city = inp.value.trim();
+    if (!city) {
+      inp.classList.add('err');
+      showToast('City required', 'Enter a city name before saving.', true);
+      return;
+    }
+    var btn = $('citySave');
+    btn.disabled = true;
+    // cd1 only. cd2 has no reader in the firmware, and nickname is a DISPLAY OVERRIDE -
+    // pinning it to whatever was typed here meant "durban" stayed lowercase forever. Sent
+    // empty so re-running setup clears a stale override; the device then shows the name the
+    // geocoder resolves.
+    var url = '/set?cd1=' + encodeURIComponent(city) + '&nickname=';
+    xhrGet(url, function (status, body) {
+      btn.disabled = false;
+      if (ok2xx(status) && /ok/i.test(body || '')) {
+        $('cityConfirmVal').textContent = city;
+        $('cityConfirm').style.display = 'block';
+        goToStep(2);
+        showToast('City saved', 'Step 1 is complete. Continue with timezone selection.', false);
+        scanWifi();
+      } else {
+        showToast('Save failed', 'The city could not be saved. Try again.', true);
+      }
+    });
+  });
+
+  // ---- step 2: timezone -----------------------------------------------------
+  var TZ = [
+    [-720, 'UTC-12:00'], [-660, 'UTC-11:00'], [-600, 'UTC-10:00'],
+    [-570, 'UTC-09:30'], [-540, 'UTC-09:00'], [-480, 'UTC-08:00'],
+    [-420, 'UTC-07:00'], [-360, 'UTC-06:00'], [-300, 'UTC-05:00'],
+    [-240, 'UTC-04:00'], [-210, 'UTC-03:30'], [-180, 'UTC-03:00'],
+    [-120, 'UTC-02:00'], [-60, 'UTC-01:00'], [0, 'UTC+00:00'],
+    [60, 'UTC+01:00'], [120, 'UTC+02:00'], [180, 'UTC+03:00'],
+    [210, 'UTC+03:30'], [240, 'UTC+04:00'], [270, 'UTC+04:30'],
+    [300, 'UTC+05:00'], [330, 'UTC+05:30'], [345, 'UTC+05:45'],
+    [360, 'UTC+06:00'], [390, 'UTC+06:30'], [420, 'UTC+07:00'],
+    [480, 'UTC+08:00'], [525, 'UTC+08:45'], [540, 'UTC+09:00'],
+    [570, 'UTC+09:30'], [600, 'UTC+10:00'], [630, 'UTC+10:30'],
+    [660, 'UTC+11:00'], [720, 'UTC+12:00'], [765, 'UTC+12:45'],
+    [780, 'UTC+13:00'], [840, 'UTC+14:00']
+  ];
+  var tzSel = $('tzSelect');
+  TZ.forEach(function (row) {
+    var o = document.createElement('option');
+    o.value = String(row[0]);
+    o.textContent = row[1];
+    if (row[0] === 120) { o.selected = true; }   // UTC+02:00
+    tzSel.appendChild(o);
+  });
+
+  $('tzSkip').addEventListener('click', function () {
+    clearToast();
+    goToStep(3);
+    showToast('Timezone skipped', 'Step 2 was skipped. Finish Wi-Fi setup.', false);
+  });
+
+  $('tzSave').addEventListener('click', function () {
+    clearToast();
+    var btn = $('tzSave');
+    var offset = tzSel.value;
+    var label = tzSel.options[tzSel.selectedIndex].textContent;
+    btn.disabled = true;
+    var url = '/set?tz_mode=manual&tz_offset=' + encodeURIComponent(offset);
+    xhrGet(url, function (status, body) {
+      btn.disabled = false;
+      if (ok2xx(status) && /ok/i.test(body || '')) {
+        $('tzConfirmVal').textContent = label;
+        $('tzConfirm').style.display = 'block';
+        goToStep(3);
+        showToast('Timezone saved', 'Step 2 is complete. Finish Wi-Fi setup.', false);
+      } else {
+        showToast('Save failed', 'The timezone could not be saved. Try again.', true);
+      }
+    });
+  });
+
+  // ---- step 3: Wi-Fi ---------------------------------------------------------
+  var apList = [];          // last scan results, server order
+  var selectedAp = null;    // AP object chosen from the dropdown (or null)
+  var wifiSel = $('wifiSelect');
+  var ssidInput = $('wifiSsid');
+  var pwInput = $('wifiPassword');
+
+  function signalOption(ap) {
+    var r = Number(ap.r);
+    if (!isFinite(r)) { r = 0; }
+    var label, icon;
+    if (r >= 70) { label = 'Strong'; icon = '📶🟢'; }
+    else if (r >= 40) { label = 'Medium'; icon = '📶🟠'; }
+    else { label = 'Weak'; icon = '📶🔴'; }
+    return icon + ' ' + label + ': ' + ap.ss + ' (' + r + '%)';
+  }
+
+  function setSingleOption(text) {
+    wifiSel.innerHTML = '';
+    var o = document.createElement('option');
+    o.value = '';
+    o.textContent = text;
+    wifiSel.appendChild(o);
+  }
+
+  function currentSelection() {
+    // Selection is valid only while the SSID input still equals that AP's SSID.
+    if (selectedAp && ssidInput.value.trim() === selectedAp.ss) { return selectedAp; }
+    return null;
+  }
+
+  function updateWifiUi() {
+    var sel = currentSelection();
+    var hint = $('wifiHint');
+    var open = sel && Number(sel.e) === 0;
+    $('pwRow').classList.toggle('hidden', !!open);
+    if (!ssidInput.value.trim()) {
+      hint.textContent = 'Scan Wi-Fi first or type the SSID manually.';
+    } else if (sel && open) {
+      hint.textContent = 'Open Wi-Fi selected. No password is needed.';
+    } else if (sel) {
+      hint.textContent = 'Encrypted Wi-Fi selected. Enter a password with at least 8 characters.';
+    } else {
+      hint.textContent = 'Manual SSID entered. Enter a password if this Wi-Fi is encrypted.';
+    }
+  }
+
+  function scanWifi() {
+    clearToast();
+    var btn = $('wifiScan');
+    btn.disabled = true;
+    wifiSel.disabled = true;
+    setSingleOption('Scanning...');
+    xhrGet('/wifi.json', function (status, body) {
+      btn.disabled = false;
+      wifiSel.disabled = false;
+      var data = null;
+      if (ok2xx(status)) {
+        try { data = JSON.parse(body); } catch (e) { data = null; }
+      }
+      if (data === null) {
+        setSingleOption('Scan failed');
+        apList = [];
+        showToast('Scan failed', 'The device could not complete the Wi-Fi scan.', true);
+        return;
+      }
+      apList = (data && Array.isArray(data.aps)) ? data.aps : [];
+      wifiSel.innerHTML = '';
+      var first = document.createElement('option');
+      first.value = '';
+      first.textContent = apList.length ? 'Click here to select Wi-Fi' : 'No networks found';
+      wifiSel.appendChild(first);
+      // Rendered in the exact order the server returned - no sorting.
+      apList.forEach(function (ap) {
+        var o = document.createElement('option');
+        o.value = ap.ss;
+        o.textContent = signalOption(ap);
+        wifiSel.appendChild(o);
+      });
+      if (apList.length) {
+        showToast('Scan complete', 'Choose a Wi-Fi network from the list or type one manually.', false);
+      } else {
+        showToast('No network found', 'Move the device closer to the router and scan again.', true);
+      }
+    });
+  }
+
+  $('wifiScan').addEventListener('click', function () {
+    clearToast();
+    scanWifi();
+  });
+
+  wifiSel.addEventListener('change', function () {
+    var idx = wifiSel.selectedIndex - 1; // first option is the placeholder
+    if (idx >= 0 && idx < apList.length) {
+      selectedAp = apList[idx];
+      ssidInput.value = selectedAp.ss;
+      if (Number(selectedAp.e) === 0) { pwInput.value = ''; }
+    } else {
+      selectedAp = null;
+    }
+    updateWifiUi();
+  });
+
+  ssidInput.addEventListener('input', function () {
+    selectedAp = null;
+    wifiSel.selectedIndex = 0;
+    updateWifiUi();
+  });
+
+  $('wifiSave').addEventListener('click', function () {
+    clearToast();
+    ssidInput.classList.remove('err');
+    pwInput.classList.remove('err');
+    var ssid = ssidInput.value.trim();
+    if (!ssid) {
+      ssidInput.classList.add('err');
+      showToast('Wi-Fi required', 'Choose a Wi-Fi network or type the SSID manually.', true);
+      return;
+    }
+    var sel = currentSelection();
+    if (sel && Number(sel.e) !== 0 && pwInput.value.length < 8) {
+      pwInput.classList.add('err');
+      showToast('Password too short', 'Encrypted Wi-Fi requires a password with at least 8 characters.', true);
+      return;
+    }
+    var password = (sel && Number(sel.e) === 0) ? '' : pwInput.value;
+    var btn = $('wifiSave');
+    btn.disabled = true;
+    var url = '/wifisave?s=' + encodeURIComponent(ssid) + '&p=' +
+      encodeURIComponent(password);
+    xhrGet(url, function (status, body) {
+      btn.disabled = false;
+      if (ok2xx(status) && /saved|reboot/i.test(body || '')) {
+        var span = $('resultSsid');
+        span.innerHTML = '';
+        var b = document.createElement('b');
+        b.textContent = ssid;
+        span.appendChild(b);
+        $('resultPanel').style.display = 'block';
+        scrollTo_($('resultPanel'));
+        showToast('Wi-Fi saved', 'The device is rebooting. Watch the screen for the new IP address.', false);
+      } else {
+        showToast('Save failed', 'The Wi-Fi settings could not be saved. Try again.', true);
+      }
+    });
+  });
+
+  updateWifiUi();
+})();
+</script>
+</body>
+</html>

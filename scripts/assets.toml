@@ -1,0 +1,637 @@
+# SmolTV-Pro asset manifest - target specs for the font and icon pipeline.
+#
+# Every face and image the firmware draws, with the freely licensed source it is
+# generated from. This file is a FROZEN FIXED POINT: edit it by hand rather than
+# regenerating it, so a bad build can never rewrite its own spec.
+#
+# CLOCK62 and TIME76 carry an explicit 'size' instead of letting --plan resolve one.
+# --plan picks the largest size that FITS, which is not the same as the size that
+# LOOKS right: unpinned, TIME76 resolves to 109px and reads too large for the clock
+# screen. These two values are the ones that were shipping and looked correct.
+# Revisit them together with the typeface choice, not separately -- squareness and
+# height trade against each other here because CLOCK62's digits sit at fixed 35px
+# positions, so a wider face has to shrink to avoid overlapping.
+#
+# 'weight' is the variable-font axis instance to render at. It MUST be set: the upstream
+# variable fonts default to their thinnest axis value, so omitting it silently produces a
+# hairline face. These values approximate the weight of the faces they stand in for; they
+# are an appearance choice and safe to tune.
+#
+# Faces with source = "lvgl-builtin" are NOT fetched or rendered by the pipeline. LVGL
+# already ships them (enabled in include/lv_conf.h), so the generated header aliases the
+# symbol straight to the library's font and the pipeline skips the row entirely. Do not
+# 'fix' these by giving them a size: rendering them ourselves would add ~153 KB of flash
+# to reproduce tables the binary already contains.
+#
+# line_height and base_line MUST be preserved exactly - src/ hardcodes panel sizes
+# and layout thresholds against them. 'size' is the px size handed to lv_font_conv
+# and is resolved by the pipeline's --plan stage.
+
+[meta]
+schema = 1
+generated_utc = "2026-07-31T11:48:26Z"
+
+[fonts.BODY27]
+symbol       = "FONT_BODY27"
+family       = "montserrat"
+weight       = 500
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 27
+base_line    = 6
+bpp          = 4
+kerning      = true
+glyphs       = 320
+ranges       = "0x20-0x7E,0xA0-0x17F"
+
+[fonts.SYM25]
+symbol       = "FONT_SYM25"
+family       = "inter"
+weight       = 800
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 25
+base_line    = 5
+bpp          = 4
+kerning      = true
+glyphs       = 70
+ranges       = "0x20,0x25,0x27,0x2B-0x2E,0x30-0x39,0x41-0x5A,0x61-0x7A"
+
+[fonts.PRICE28]
+symbol       = "FONT_PRICE28"
+family       = "inter"
+weight       = 800
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 28
+base_line    = 6
+bpp          = 4
+kerning      = false
+glyphs       = 18
+ranges       = "0x20,0x25,0x27,0x2B-0x2E,0x30-0x39"
+
+[fonts.PRICE35]
+symbol       = "FONT_PRICE35"
+family       = "inter"
+weight       = 800
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 35
+base_line    = 7
+bpp          = 4
+kerning      = false
+glyphs       = 18
+ranges       = "0x20,0x25,0x27,0x2B-0x2E,0x30-0x39"
+
+[fonts.PCT27]
+symbol       = "FONT_PCT27"
+family       = "montserrat"
+source       = "lvgl-builtin"
+builtin      = "lv_font_montserrat_24"
+licence      = "OFL-1.1"
+line_height  = 27
+base_line    = 5
+bpp          = 4
+kerning      = true
+glyphs       = 97
+ranges       = "0x20-0x7E,0xB0"
+
+[fonts.LEAD31]
+symbol       = "FONT_LEAD31"
+family       = "teko"
+weight       = 400
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 31
+base_line    = 0
+bpp          = 4
+kerning      = false
+glyphs       = 12
+ranges       = "0x30-0x3A"
+
+[fonts.CLOCK62]
+# Drawn as five separate labels pinned to fixed x positions 35px apart, so what limits the
+# size here is DIGIT WIDTH, not line height. Specifically the INK width: the labels are
+# transparent, so two glyphs collide only when the ink itself is wider than the pitch (the
+# per-glyph ofs_x cancels out of that comparison). Measuring the ADVANCE instead counts both
+# sidebearings and needlessly rejects fonts that would sit side by side fine.
+max_ink_width = 35
+symbol       = "FONT_CLOCK62"
+family       = "teko"
+weight       = 400
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 62
+base_line    = 0
+bpp          = 4
+kerning      = false
+glyphs       = 12
+ranges       = "0x30-0x3A"
+
+[fonts.STK30]
+symbol       = "FONT_STK30"
+family       = "montserrat"
+source       = "lvgl-builtin"
+builtin      = "lv_font_montserrat_28"
+licence      = "OFL-1.1"
+line_height  = 30
+base_line    = 5
+bpp          = 4
+kerning      = true
+glyphs       = 97
+ranges       = "0x20-0x7E,0xB0"
+
+[fonts.SMALL16]
+symbol       = "FONT_SMALL16"
+family       = "montserrat"
+source       = "lvgl-builtin"
+builtin      = "lv_font_montserrat_14"
+licence      = "OFL-1.1"
+line_height  = 16
+base_line    = 3
+bpp          = 4
+kerning      = true
+glyphs       = 97
+ranges       = "0x20-0x7E,0xB0"
+
+[fonts.CGPRICE29]
+symbol       = "FONT_CGPRICE29"
+family       = "inter"
+weight       = 800
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 29
+base_line    = 6
+bpp          = 4
+kerning      = false
+glyphs       = 18
+ranges       = "0x20,0x25,0x27,0x2B-0x2E,0x30-0x39"
+
+[fonts.TEMP52]
+symbol       = "FONT_TEMP52"
+family       = "montserrat"
+source       = "lvgl-builtin"
+builtin      = "lv_font_montserrat_48"
+licence      = "OFL-1.1"
+line_height  = 52
+base_line    = 9
+bpp          = 4
+kerning      = true
+glyphs       = 97
+ranges       = "0x20-0x7E,0xB0"
+
+[fonts.TIME76]
+symbol       = "FONT_TIME76"
+family       = "teko"
+weight       = 400
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 76
+base_line    = 0
+bpp          = 4
+kerning      = false
+glyphs       = 12
+ranges       = "0x30-0x3A"
+
+[fonts.DATE22]
+symbol       = "FONT_DATE22"
+family       = "inter"
+weight       = 800
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 22
+base_line    = 5
+bpp          = 4
+kerning      = false
+glyphs       = 19
+ranges       = "0x20,0x25,0x2B-0x3A"
+
+[fonts.WDAY25]
+# Letters and space only -- deliberately narrow, since nothing else is ever rendered here.
+# This face draws exactly one thing: the weekday abbreviation ("Sun".."Sat") on the clock
+# screen. The punctuation carried the TALLEST glyphs in the range -- "(" and ")" reach
+# 24px where the letters reach 16 -- and --plan sizes a face so its tallest glyph fits the
+# line box, so a parenthesis that is never drawn was shrinking the visible letters by a
+# fifth. Dropping them lets the letters fill the box, and saves about 30 KB of flash.
+symbol       = "FONT_WDAY25"
+family       = "teko"
+weight       = 400
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 25
+base_line    = 5
+bpp          = 4
+kerning      = false
+glyphs       = 96
+ranges       = "0x20,0x41-0x5A,0x61-0x7A"
+
+[fonts.COINHUGE]
+symbol       = "FONT_COINHUGE"
+family       = "inter"
+weight       = 800
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 54
+base_line    = 11
+bpp          = 4
+kerning      = false
+glyphs       = 18
+ranges       = "0x20,0x25,0x27,0x2B-0x2E,0x30-0x39"
+
+[fonts.COINBIG]
+symbol       = "FONT_COINBIG"
+family       = "inter"
+weight       = 800
+licence      = "OFL-1.1"
+size         = 0            # px, resolved by --plan
+line_height  = 44
+base_line    = 9
+bpp          = 4
+kerning      = false
+glyphs       = 18
+ranges       = "0x20,0x25,0x27,0x2B-0x2E,0x30-0x39"
+
+[images.APP_BITCOIN]
+symbol       = "IMG_APP_BITCOIN"
+set          = "web3icons"
+icon         = "BTC"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.APP_CLOCK]
+symbol       = "IMG_APP_CLOCK"
+set          = "flat-color-icons"
+icon         = "clock"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.APP_COINGECKO]
+symbol       = "IMG_APP_COINGECKO"
+set          = "flat-color-icons"
+icon         = "currency_exchange"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.APP_IDEA]
+symbol       = "IMG_APP_IDEA"
+set          = "flat-color-icons"
+icon         = "idea"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.APP_MONITOR]
+symbol       = "IMG_APP_MONITOR"
+set          = "flat-color-icons"
+icon         = "electronics"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.APP_PICTURE]
+symbol       = "IMG_APP_PICTURE"
+set          = "flat-color-icons"
+icon         = "gallery"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.APP_SETTINGS]
+symbol       = "IMG_APP_SETTINGS"
+set          = "flat-color-icons"
+icon         = "settings"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.APP_STOCK]
+symbol       = "IMG_APP_STOCK"
+set          = "flat-color-icons"
+icon         = "combo_chart"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.APP_WEATHER]
+symbol       = "IMG_APP_WEATHER"
+set          = "basmilius"
+icon         = "partly-cloudy-day"
+licence      = "MIT"
+width        = 128
+height       = 128
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 8256
+
+[images.WX_ICON_01]
+symbol       = "IMG_WX_ICON_01"
+set          = "basmilius"
+icon         = "clear-day"
+licence      = "MIT"
+width        = 64
+height       = 64
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 2112
+
+[images.WX_ICON_02]
+symbol       = "IMG_WX_ICON_02"
+set          = "basmilius"
+icon         = "partly-cloudy-day"
+licence      = "MIT"
+width        = 60
+height       = 60
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 1864
+
+[images.WX_ICON_03]
+symbol       = "IMG_WX_ICON_03"
+set          = "basmilius"
+icon         = "cloudy"
+licence      = "MIT"
+width        = 60
+height       = 60
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 1864
+
+[images.WX_ICON_04]
+symbol       = "IMG_WX_ICON_04"
+set          = "basmilius"
+icon         = "overcast"
+licence      = "MIT"
+width        = 60
+height       = 60
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 1864
+
+[images.WX_ICON_09]
+symbol       = "IMG_WX_ICON_09"
+set          = "basmilius"
+icon         = "drizzle"
+licence      = "MIT"
+width        = 60
+height       = 60
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 1864
+
+[images.WX_ICON_10]
+symbol       = "IMG_WX_ICON_10"
+set          = "basmilius"
+icon         = "rain"
+licence      = "MIT"
+width        = 60
+height       = 60
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 1864
+
+[images.WX_ICON_11]
+symbol       = "IMG_WX_ICON_11"
+set          = "basmilius"
+icon         = "thunderstorms"
+licence      = "MIT"
+width        = 60
+height       = 60
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 1864
+
+[images.WX_ICON_13]
+symbol       = "IMG_WX_ICON_13"
+set          = "basmilius"
+icon         = "snow"
+licence      = "MIT"
+width        = 60
+height       = 60
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 1864
+
+[images.WX_ICON_50]
+symbol       = "IMG_WX_ICON_50"
+set          = "basmilius"
+icon         = "fog"
+licence      = "MIT"
+width        = 54
+height       = 54
+cf           = "LV_IMG_CF_INDEXED_4BIT"
+data_size    = 1522
+
+[images.WX_GAUGE_TEMP]
+# This source pads its glyph heavily: rendered straight, the mark occupies well under
+# a fifth of its box and is effectively invisible on the panel. 'trim' crops to the
+# ink and scales it to fill the slot, which is what this space needs -- note the ink's
+# aspect ratio already matches the slot's almost exactly.
+#
+# Baked at its FINAL on-screen size (17x32) -- no runtime lv_img_set_zoom. This used to be
+# a 21x40 slot rendered at zoom 0xB4 (70.3%) on the temp gauge, then bumped to a one-off 80%
+# zoom because the thermometer read too small; that left the icon's zoom pivot (always the
+# center of the UNSCALED box) fixed while the box grew, which is what put the rendered icon
+# visibly right of the humidity icon's midpoint. Baking the target size in and aligning by
+# plain LVGL offsets (no zoom math) is what makes the two icons center-alignable at all.
+trim         = true
+symbol       = "IMG_WX_GAUGE_TEMP"
+set          = "basmilius"
+icon         = "thermometer"
+licence      = "MIT"
+width        = 17
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR"
+data_size    = 1088          # width * height * 2 bytes (TRUE_COLOR, RGB565)
+
+[images.WX_GAUGE_HUMI]
+# This source pads its glyph heavily: rendered straight, the mark occupies well under
+# a fifth of its box and is effectively invisible on the panel. 'trim' crops to the
+# ink and scales it to fill the slot, which is what this space needs -- note the ink's
+# aspect ratio already matches the slot's almost exactly.
+#
+# Baked at its FINAL on-screen size (22x22) -- the Ghidra-verified zoom 0xB4 (70.3%) applied
+# to the original 32x32 slot, now baked in instead of applied at runtime. No lv_img_set_zoom.
+trim         = true
+symbol       = "IMG_WX_GAUGE_HUMI"
+set          = "basmilius"
+icon         = "humidity"
+licence      = "MIT"
+width        = 22
+height       = 22
+cf           = "LV_IMG_CF_TRUE_COLOR"
+data_size    = 968           # width * height * 2 bytes (TRUE_COLOR, RGB565)
+
+[images.COIN_BTC]
+symbol       = "IMG_COIN_BTC"
+set          = "web3icons"
+icon         = "BTC"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_ETH]
+symbol       = "IMG_COIN_ETH"
+set          = "web3icons"
+icon         = "ETH"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_BNB]
+symbol       = "IMG_COIN_BNB"
+set          = "web3icons"
+icon         = "BNB"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_DOGE]
+symbol       = "IMG_COIN_DOGE"
+set          = "web3icons"
+icon         = "DOGE"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR"
+data_size    = 2048
+
+[images.COIN_XRP]
+symbol       = "IMG_COIN_XRP"
+set          = "web3icons"
+icon         = "XRP"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_LINK]
+symbol       = "IMG_COIN_LINK"
+set          = "web3icons"
+icon         = "LINK"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_ADA]
+symbol       = "IMG_COIN_ADA"
+set          = "web3icons"
+icon         = "ADA"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_TRX]
+symbol       = "IMG_COIN_TRX"
+set          = "web3icons"
+icon         = "TRX"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_SOL]
+symbol       = "IMG_COIN_SOL"
+set          = "web3icons"
+icon         = "SOL"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_SUI]
+symbol       = "IMG_COIN_SUI"
+set          = "web3icons"
+icon         = "SUI"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_LTC]
+symbol       = "IMG_COIN_LTC"
+set          = "web3icons"
+icon         = "LTC"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+[images.COIN_BCH]
+symbol       = "IMG_COIN_BCH"
+set          = "web3icons"
+icon         = "BCH"
+licence      = "MIT"
+width        = 32
+height       = 32
+cf           = "LV_IMG_CF_TRUE_COLOR_ALPHA"
+data_size    = 3072
+
+# -- Table orderings ------------------------------------------------------------------
+# These orders are behaviour, not appearance, and none of them can be derived from the
+# entries above -- so they live here rather than being hidden inside the generator.
+[icos.FAVICON]
+out          = "favicon.ico"
+target_dir   = "/"                    # LittleFS root, served by the static file handler
+set          = "twemoji"              # see ICO_SRC in build_assets.py
+icon         = "1f9e0"                # U+1F9E0 BRAIN
+licence      = "CC-BY-4.0"
+size         = 32                     # a single 32x32 image, see render_icos()
+
+[order]
+# Launcher order: the sequence the apps are registered in, which is the order the launcher
+# scrolls through them. NOT the alphabetical order the [images] entries happen to be in.
+app_icons = ["APP_BITCOIN", "APP_COINGECKO", "APP_STOCK", "APP_WEATHER", "APP_PICTURE",
+             "APP_MONITOR", "APP_CLOCK", "APP_IDEA", "APP_SETTINGS"]
+
+# Weather condition codes, scanned in lock-step with the WX_ICON_* descriptors.
+wx_codes = [1, 2, 3, 4, 9, 10, 11, 13, 50]
+
+# Coin lookup. Trading symbols are matched by PREFIX ("BTCUSDT" -> BTC); ids are matched
+# EXACTLY, because a prefix match would send "bitcoin-cash" to the BTC icon.
+coin_order = ["BTC", "ETH", "BNB", "DOGE", "XRP", "LINK", "ADA", "TRX", "SOL", "SUI", "LTC", "BCH"]
+coin_ids = ["bitcoin", "ethereum", "binancecoin", "dogecoin", "ripple", "chainlink",
+            "cardano", "tron", "solana", "sui", "litecoin", "bitcoin-cash"]
+
+# -- Animated GIFs (LittleFS content, not compiled into the firmware) -----------------
+# These are device DATA: the pipeline renders them to assets/build/gifs/ and they are
+# uploaded to /image/80x80.gif/ on the device. They are not part of the generated headers.
+[gifs.EARTH]
+out          = "earth.gif"
+target_dir   = "/image/80x80.gif"     # the weather app's GIF directory
+source       = "nasa-land-ocean-ice"  # see GIF_TEXTURE_SRC in build_assets.py
+licence      = "PD-NASA"
+width        = 80
+height       = 80
+radius       = 38                     # globe radius in px, leaves a small margin
+frames       = 240
+duration_ms  = 40                     # 40ms = 25 fps, matching the stock space.gif
+supersample  = 3                      # render at 3x then downscale
+# Colours. BLACK MUST BE FIRST: a GIF decoder fills background/disposed regions with
+# palette index 0, and the firmware additionally composites black as transparent. With a
+# non-black entry 0 the panel showed a flashing CYAN SQUARE behind the globe.
+palette      = [[0, 0, 0], [0, 235, 255], [0, 28, 52]]   # transparent, land, ocean

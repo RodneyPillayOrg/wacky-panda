@@ -1,0 +1,376 @@
+/* SmolTV PRO web UI - one stylesheet for every page.
+ *
+ * index.html    body.page-console   the settings console
+ * portal.html   body.page-portal    the first-run setup wizard (AP mode)
+ * captive.html  body.page-captive   the captive-portal landing card
+ * update.html   body.page-update    the OTA upload form
+ *
+ * THE CONSOLE IS THE REFERENCE. Its type scale, spacing, colours and control shapes are the
+ * ones defined here; the other three pages use the same vocabulary rather than restating it at
+ * their own sizes. A page section below carries only what is genuinely unique to that page's
+ * structure, and is scoped by the body class so it cannot leak.
+ *
+ * ONE DEFINITION PER THING. The vocabulary is small on purpose:
+ *
+ *   surfaces   .panel .hero            bordered boxes
+ *   tiles      .selcard .filecard .uploadcard .pill    bordered cards on --raised
+ *   buttons    .btn + .tab .mini .onoff .ghost .danger
+ *   selected   .selected               the accent-filled state, shared by tabs and cards
+ *   text       h1  p.lead  .t  .s  .pnote .hint       title / subtitle / small print
+ *   fills      .meter                  storage and upload progress
+ *
+ * If a component needs a look that exists already, use the class - do not restate the
+ * declarations under a new name. Four separate spellings of "13px bold title over 11px muted
+ * subtitle" is what this file used to contain.
+ */
+
+/* ============================ Tokens ============================ */
+:root {
+  --bg: #07131d;
+  --panel: #0e2233;
+  --raised: #0a1a29;
+  --field: #08131c;
+  --line: #1d3a52;
+  --line-soft: #14293b;
+
+  --ink: #e8f1f8;
+  --ink-dim: #c8d8e4;
+  --muted: #9fb8ca;
+  --muted-2: #7d99ad;
+  --muted-3: #5c7386;
+
+  --accent: #2f9df4;
+  --accent-bg: #10304a;
+  --on-accent: #06121b;
+
+  --ok: #2fbf71;
+  --ok-bg: #0c2a20;
+  --ok-ink: #bfe8cf;
+  --warn: #e0662f;
+  --warn-bg: #2c1610;
+  --warn-ink: #f4c9b4;
+  --danger: #c8452c;
+}
+
+/* ============================= Base ============================= */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+a { color: var(--accent); }
+button { font-family: inherit; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+.hidden { display: none; }
+
+/* ============================== Text ============================= */
+
+h1 { margin: 4px 0 4px; font-size: 21px; }
+p.lead { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+
+/* Title over subtitle, used by every tile, toggle row and checklist item. */
+.t { font-size: 13px; font-weight: 600; }
+.s { font-size: 11px; color: var(--muted-2); }
+
+/* Small print. .pnote sits under a panel heading, .hint follows a control, .atext labels a
+   row of actions; they differ only in how they space themselves. */
+.pnote, .hint, .actions .atext, .page-console .toolbar {
+  font-size: 12px; color: var(--muted-2);
+}
+.pnote { margin: 0 0 10px; }
+.hint { margin-top: 8px; }
+.actions .atext { margin-right: auto; }
+
+/* Uppercase micro-label: a field's caption, and the eyebrow above a hero title. */
+label.fld, .hero .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+label.fld { display: block; color: var(--muted-2); margin: 8px 0 4px; }
+.hero .eyebrow { color: var(--accent); }
+
+/* ============================ Surfaces =========================== */
+
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 12px; }
+
+.panel, .hero, .page-console .overlay .box {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  margin-bottom: 14px;
+}
+.panel { padding: 14px; }
+.hero { padding: 16px; }
+.panel h2 { margin: 0 0 4px; font-size: 15px; }
+
+/* Tiles: a bordered card on the raised background. */
+.page-console .selcard, .page-console .filecard, .page-console .uploadcard,
+.page-portal .pill {
+  background: var(--raised); border: 1px solid var(--line); border-radius: 10px;
+}
+
+
+/* ============================ Controls =========================== */
+
+input[type=text], input[type=password], input[type=file], select {
+  width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--field); color: var(--ink); font-size: 13px;
+}
+input.err { border-color: var(--warn); }
+
+.actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+
+/* One button, four variants. display/text-decoration are set so a <label> or an <a> can wear
+   the class - the captive page's call to action and the OTA file picker both do. */
+.btn {
+  display: inline-block; padding: 8px 16px; border-radius: 8px; border: 0; cursor: pointer;
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  background: var(--accent); color: var(--on-accent);
+}
+.btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+.btn.danger { background: var(--danger); color: #fff; }
+/* .tab: the view switcher. .mini: a secondary action on a tile or row. .onoff: an on/off
+   pill. All three are bordered rather than filled, so the filled .btn colours are replaced.
+   The on/off variant is NOT called .toggle: .page-console .toggle is the settings toggle ROW,
+   and at equal specificity the later of the two won - handing the button display:flex and
+   align-items:flex-start, which pushed its label to the left edge. */
+.btn.tab {
+  background: var(--raised); border: 1px solid var(--line); color: var(--ink-dim);
+  font-weight: 400;
+}
+.btn.mini {
+  padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--accent-bg); color: var(--ink); font-size: 11px; font-weight: 400;
+}
+.btn.onoff {
+  padding: 5px 0; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--raised); color: var(--muted-2); font-size: 11px; font-weight: 700;
+}
+.btn.mini:disabled, .btn.onoff:disabled { opacity: 0.4; }
+
+/* The accent-filled selected state: one definition, worn by the tab strip and the picker
+   cards. Both selectors are spelled out because each has to out-specify the rule it is
+   overriding - a bare .selected loses to .btn.tab and to .page-console .selcard, and silently
+   does nothing. */
+.btn.tab.selected, .page-console .selcard.selected {
+  background: var(--accent-bg); border-color: var(--accent); color: #fff;
+}
+
+/* A tag. Static on the console's hero rows, tappable as a city preset on the portal. */
+.chip {
+  font-size: 11px; background: var(--raised); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px 10px; color: var(--muted);
+}
+button.chip { cursor: pointer; }
+button.chip:hover { color: var(--ink); border-color: var(--accent); }
+.chip b { color: var(--ink); font-weight: 600; }
+
+/* Progress and fill bars: storage on the console, upload on the OTA page. */
+.meter { height: 6px; background: var(--field); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+.meter i { display: block; height: 100%; background: var(--accent); width: 0; }
+
+/* Password field with a reveal button inside its right-hand edge. The input keeps its full
+   width and gains padding so text cannot run under the button. */
+.pwfield { position: relative; }
+.pwfield input { padding-right: 38px; }
+.pwfield .pweye {
+  position: absolute; top: 0; right: 0; height: 100%; width: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted-2);
+}
+.pwfield .pweye:hover { color: var(--ink); }
+.pwfield .pweye svg { width: 16px; height: 16px; }
+.pwfield .pweye[aria-pressed=true] { color: var(--accent); }
+
+/* ===================== Page: settings console ==================== */
+
+body.page-console { padding-bottom: 48px; }
+
+/* The strip runs the full width; the tabs inside it sit in the same centred column as the page
+   content, so the first tab lines up with the panels below it. */
+.page-console .subtabs { padding: 10px 0; }
+.page-console .subtabs .wrap { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+.page-console .view { display: none; padding-top: 14px; }
+.page-console .view.current { display: block; }
+
+.page-console .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+
+.page-console input[type=color] {
+  width: 100%; height: 34px; padding: 2px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--field);
+}
+.page-console input[type=range] { width: 100%; }
+
+.page-console .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.page-console .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+/* The colour-picker grid. Each cell is a column with its swatch pinned to the BOTTOM, because
+   some of these labels wrap to two lines ("Percent Up Background") and some do not - and a
+   label that wraps used to push its swatch down out of line with the rest of the row. */
+.page-console .grid5 {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;
+}
+.page-console .grid5 > * { display: flex; flex-direction: column; }
+.page-console .grid5 input[type=color] { margin-top: auto; }
+
+.page-console .slot { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.page-console .slot .n { width: 22px; font-size: 11px; color: var(--muted-2); text-align: right; }
+
+body.busy button { pointer-events: none; opacity: 0.55; }
+
+.page-console .cards {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;
+}
+.page-console .selcard { padding: 10px; cursor: pointer; text-align: left; color: var(--ink-dim); }
+
+.page-console .toggle { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; }
+
+/* The console's toast floats over the page; the portal's is an inline banner, hence both are
+   scoped rather than sharing the name. */
+.page-console .toast {
+  position: fixed; right: 16px; bottom: 16px; z-index: 60; display: none;
+  padding: 10px 16px; border-radius: 10px; font-size: 13px; max-width: 70vw;
+}
+.page-console .toast.show { display: block; }
+.page-console .toast.ok { background: var(--ok-bg); border: 1px solid var(--ok); color: var(--ok-ink); }
+.page-console .toast.fail { background: var(--warn-bg); border: 1px solid var(--warn); color: var(--warn-ink); }
+
+.page-console .filegrid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px; margin-top: 10px;
+}
+/* A column so the buttons can be pinned to the bottom. The grid stretches every tile to the
+   tallest in its row, and filenames wrap to one or two lines, so without this the button row
+   floats wherever the text happens to end - up to 24 px higher on a short name than on its
+   neighbours, which reads as the buttons having come loose from the tile. */
+.page-console .filecard {
+  padding: 8px; text-align: center; font-size: 11px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.page-console .filecard img {
+  width: 80px; height: 80px; object-fit: contain; background: var(--field);
+  border-radius: 6px; max-width: 100%;
+}
+.page-console .filecard .fname { margin: 6px 0 2px; word-break: break-all; width: 100%; }
+.page-console .filecard .fsize { color: var(--muted-2); margin-bottom: 6px; }
+.page-console .filecard .fbtns { display: flex; gap: 6px; justify-content: center; margin-top: auto; }
+.page-console .filecard .btn.mini.on { background: var(--ok); color: var(--on-accent); border-color: var(--ok); }
+
+.page-console .uploadcard {
+  border-style: dashed; border-color: var(--accent);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 14px 8px; cursor: pointer; font-size: 11px; color: var(--muted); text-align: center;
+}
+.page-console .uploadcard.disabled { opacity: 0.5; pointer-events: none; }
+.page-console .uploadcard .plus { font-size: 24px; color: var(--accent); }
+
+.page-console .summary { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.page-console .summary .thumb {
+  width: 64px; height: 64px; border-radius: 8px; background: var(--field);
+  border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--muted-3); overflow: hidden;
+}
+.page-console .summary .thumb img { width: 100%; height: 100%; object-fit: contain; }
+.page-console .summary .stat b { display: block; color: var(--ink); font-size: 13px; }
+
+.page-console .toolbar { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.page-console .toolbar .spacer { margin-left: auto; }
+
+.page-console .approw {
+  display: flex; align-items: center; gap: 8px; padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.page-console .approw:last-child { border-bottom: 0; }
+.page-console .approw .btn.onoff { width: 52px; }
+.page-console .approw .btn.onoff.on { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+
+.page-console .overlay {
+  position: fixed; inset: 0; background: rgba(4, 10, 16, 0.8); z-index: 80;
+  display: none; align-items: center; justify-content: center;
+}
+.page-console .overlay.show { display: flex; }
+.page-console .overlay .box { padding: 20px; width: 320px; max-width: 90vw; margin: 0; }
+.page-console .overlay h3 { margin: 0 0 10px; font-size: 15px; }
+.page-console .overlay .pct { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.page-console .overlay .meta { font-size: 12px; color: var(--muted); word-break: break-all; }
+
+.page-console .checklist div { padding: 4px 0; }
+
+/* ======================= Page: setup portal ====================== */
+/* Structure only - panels, heroes, fields, buttons, tiles and small print all come from the
+   shared rules above. It has no topbar, so it supplies its own top padding, and it is a
+   single column, so it stays narrow. */
+
+body.page-portal { padding: 16px 12px 40px; }
+.page-portal .wrap { max-width: 560px; }
+
+/* Step indicator: three tiles in a row. */
+.page-portal .pills { display: flex; gap: 8px; }
+.page-portal .pill { flex: 1; padding: 8px 10px; }
+.page-portal .pill.active { border-color: var(--accent); background: var(--accent-bg); }
+.page-portal .pill.done { border-color: var(--ok); background: var(--ok-bg); }
+
+/* Inline banner, not the console's floating toast. */
+.page-portal .toast {
+  display: none; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
+  background: var(--ok-bg); border: 1px solid var(--ok);
+}
+.page-portal .toast.warn { background: var(--warn-bg); border-color: var(--warn); }
+/* Subtitles sit on a coloured surface here, where --muted-2 is too faint to read. */
+.page-portal .toast .s, .page-portal .result .s { color: var(--ink-dim); }
+
+.page-portal .presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+
+.page-portal .scanrow { display: flex; gap: 8px; align-items: center; }
+.page-portal .scanrow select { flex: 1; }
+
+/* Both confirm a saved value in place, in the same green as the banner. Hidden until a save
+   succeeds - the JS reveals them with style.display, so display:none belongs HERE and must
+   not be dropped when tidying these rules. */
+.page-portal .confirm, .page-portal .result {
+  display: none;
+  background: var(--ok-bg); border: 1px solid var(--ok); border-radius: 8px;
+}
+.page-portal .confirm { margin-top: 10px; font-size: 13px; color: var(--ok-ink); padding: 8px 10px; }
+.page-portal .result { padding: 16px; margin-bottom: 14px; border-radius: 12px; }
+.page-portal .result .t { margin-bottom: 6px; }
+.page-portal .result p { margin: 0; font-size: 13px; }
+.page-portal .result code {
+  display: block; background: var(--field); border-radius: 6px; padding: 8px 10px;
+  margin-top: 8px; font-size: 13px;
+}
+
+/* ====================== Page: captive landing =================== */
+/* One panel, centred in the viewport. */
+
+body.page-captive {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+}
+.page-captive .panel { padding: 32px 28px; max-width: 360px; margin: 0; text-align: center; }
+.page-captive .btn { padding: 10px 26px; }
+
+/* ======================== Page: OTA upload ====================== */
+/* A panel centred near the top. The progress bar is the shared .meter, tall enough to carry
+   its percentage inside. */
+
+body.page-update { display: flex; justify-content: center; padding-top: 8vh; }
+.page-update .panel { width: 340px; max-width: 92vw; text-align: center; margin: 0; }
+.page-update .targets { display: flex; gap: 14px; justify-content: center; font-size: 13px; }
+.page-update .targets label, .page-update #keepwifi-row {
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+}
+.page-update #keepwifi-row { font-size: 12px; color: var(--muted-2); margin: 8px 0 4px; }
+/* Greyed out while it does not apply - a firmware write has no /.sys to keep. */
+.page-update #keepwifi-row.disabled { opacity: 0.45; cursor: default; }
+.page-update input[type=file] { display: none; }
+.page-update #fname {
+  display: inline-block; font-size: 13px; color: var(--muted-2);
+  min-height: 18px; white-space: pre;
+}
+.page-update #updBtn { display: none; margin-top: 14px; }
+.page-update #progWrap { display: none; height: 22px; position: relative; margin-top: 18px; }
+.page-update #progTxt {
+  position: absolute; inset: 0; line-height: 22px; font-size: 12px;
+  color: var(--ink); text-align: center;
+}
+.page-update #status { min-height: 18px; }

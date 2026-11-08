@@ -1,0 +1,26 @@
+# Line endings are LF everywhere, in the working tree as well as in git.
+#
+# Mixed endings have already cost real time here: multi-line search-and-replace patterns
+# silently fail to match CRLF files, so patches appear to succeed while changing nothing.
+# Normalising removes that failure mode rather than working around it each time.
+* text=auto eol=lf
+
+# Binary assets: never touch, never diff as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.gz   binary
+*.zip  binary
+*.ttf  binary
+*.otf  binary
+*.woff binary
+*.woff2 binary
+*.bin  binary
+*.elf  binary
+
+# Generated glyph and image tables: huge, machine-emitted, and reviewing them line by line
+# is never useful. Keep them out of diffs so real source changes stay legible.
+src/LvFontsGen.h  -diff linguist-generated=true
+src/LvImagesGen.h -diff linguist-generated=true

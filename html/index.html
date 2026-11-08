@@ -1,0 +1,2298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07131d">
+<title>SmolTV PRO</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-console">
+<div class="subtabs" id="subtabs">
+  <div class="wrap">
+    <button type="button" id="nav-tab-btc" data-spec-id="nav-tab-btc" data-view="btc" class="btn tab selected">Bitcoin</button>
+    <button type="button" id="nav-tab-cg" data-spec-id="nav-tab-cg" data-view="cg" class="btn tab">CoinGecko</button>
+    <button type="button" id="nav-tab-stock" data-spec-id="nav-tab-stock" data-view="stock" class="btn tab">Stock</button>
+    <button type="button" id="nav-tab-weather" data-spec-id="nav-tab-weather" data-view="weather" class="btn tab">Weather</button>
+    <button type="button" id="nav-tab-time" data-spec-id="nav-tab-time" data-view="time" class="btn tab">Clock</button>
+    <button type="button" id="nav-tab-image" data-spec-id="nav-tab-image" data-view="image" class="btn tab">Picture</button>
+    <button type="button" id="nav-tab-monitor" data-spec-id="nav-tab-monitor" data-view="monitor" class="btn tab">Monitor</button>
+    <button type="button" id="nav-tab-settings" data-spec-id="nav-tab-settings" data-view="settings" class="btn tab">System</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ============================= Bitcoin ============================= -->
+<section class="view" id="view-btc">
+  <div class="hero">
+    <div class="eyebrow">Bitcoin App</div>
+    <h1>Binance Market</h1>
+    <p class="lead">Configure symbols, chart, refresh, and format.</p>
+    <div class="chips">
+      <span class="chip">Theme <b id="chip-btc-theme">-</b></span>
+      <span class="chip">Chart <b id="chip-btc-chart">-</b></span>
+      <span class="chip">Interval <b id="chip-btc-interval">-</b></span>
+      <span class="chip">Refresh <b id="chip-btc-refresh">-</b></span>
+      <span class="chip">Rotate <b id="chip-btc-rotate">-</b></span>
+    </div>
+    <button type="button" class="btn" id="btc-open" data-spec-id="btc-open">Open This App</button>
+  </div>
+
+  <div class="panel">
+    <h2>Pairs and optional names</h2>
+    <p class="pnote">Use Binance pair IDs. Name is optional.</p>
+    <div class="grid2" id="btc-slots"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Choose display theme</h2>
+    <div class="cards" id="btc-theme-cards"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Shape and interval</h2>
+    <div class="cards" id="btc-chart-cards"></div>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="btc-kline">K-Line Interval</label>
+        <select id="btc-kline" data-spec-id="btc-kline"></select>
+      </div>
+      <div>
+        <label class="fld" for="btc-pct-mode">Change Calculation</label>
+        <select id="btc-pct-mode" data-spec-id="btc-pct-mode">
+          <option value="0">Rolling 24h (Binance default)</option>
+          <option value="1">Previous Closed Candle (Trader Mode)</option>
+        </select>
+      </div>
+    </div>
+    <div class="hint">30 points per chart. <b>1d</b> is about 30 days.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Cadence</h2>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="btc-refresh">Data Refresh (sec)</label>
+        <input type="text" inputmode="numeric" id="btc-refresh" data-spec-id="btc-refresh" placeholder="30">
+      </div>
+      <div>
+        <label class="fld" for="btc-rotate">Rotation Interval (sec)</label>
+        <input type="text" inputmode="numeric" id="btc-rotate" data-spec-id="btc-rotate" placeholder="10">
+      </div>
+    </div>
+    <div class="hint">Lower values refresh faster and use more requests.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Behavior</h2>
+    <div id="btc-toggles"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Market Style</h2>
+    <p class="pnote">Shared with CoinGecko.</p>
+    <div class="grid5" id="style-pickers"></div>
+    <div class="actions" style="margin-top:10px">
+      <button type="button" class="btn" id="style-save" data-spec-id="style-save">Save Market Style</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Number Format</h2>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="fmt-decimal">Decimal Separator</label>
+        <select id="fmt-decimal" data-spec-id="fmt-decimal">
+          <option value=".">Dot (.)</option>
+          <option value=",">Comma (,)</option>
+        </select>
+      </div>
+      <div>
+        <label class="fld" for="fmt-thousand">Thousand Separator</label>
+        <select id="fmt-thousand" data-spec-id="fmt-thousand">
+          <option value=",">Comma (,)</option>
+          <option value=".">Dot (.)</option>
+          <option value=" ">Space</option>
+          <option value="'">Apostrophe (')</option>
+        </select>
+      </div>
+    </div>
+    <div class="hint">Used by Bitcoin and CoinGecko.</div>
+  </div>
+
+  <div class="panel actions">
+    <span class="atext">Save Bitcoin settings and shared format.</span>
+    <button type="button" class="btn ghost" id="btc-reload" data-spec-id="btc-reload">Reload Bitcoin</button>
+    <button type="button" class="btn" id="btc-save" data-spec-id="btc-save">Save Bitcoin</button>
+  </div>
+</section>
+
+<!-- ============================= CoinGecko ============================= -->
+<section class="view" id="view-cg">
+  <div class="hero">
+    <div class="eyebrow">CoinGecko App</div>
+    <h1>CoinGecko Market</h1>
+    <p class="lead">Configure IDs, range, theme, and refresh.</p>
+    <div class="chips">
+      <span class="chip">Theme <b id="chip-cg-theme">-</b></span>
+      <span class="chip">Range <b id="chip-cg-range">-</b></span>
+      <span class="chip">Refresh <b id="chip-cg-refresh">-</b></span>
+      <span class="chip">Rotate <b id="chip-cg-rotate">-</b></span>
+      <span class="chip">Source <b>CoinGecko</b></span>
+    </div>
+    <button type="button" class="btn" id="cg-open" data-spec-id="cg-open">Open This App</button>
+  </div>
+
+  <div class="panel">
+    <h2>Coin IDs</h2>
+    <p class="pnote">Use exact CoinGecko IDs (for example bitcoin, ethereum). Duplicates are not allowed.</p>
+    <div class="grid2" id="cg-slots"></div>
+    <div class="hint">Wrong IDs return empty pages.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Choose display theme</h2>
+    <div class="cards" id="cg-theme-cards"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Chart</h2>
+    <div class="grid3">
+      <div>
+        <label class="fld" for="cg-range">Chart Range</label>
+        <select id="cg-range" data-spec-id="cg-range"></select>
+      </div>
+      <div>
+        <label class="fld" for="cg-refresh">Data Refresh (sec)</label>
+        <input type="text" inputmode="numeric" id="cg-refresh" data-spec-id="cg-refresh" placeholder="60">
+      </div>
+      <div>
+        <label class="fld" for="cg-rotate">Rotation Interval (sec)</label>
+        <input type="text" inputmode="numeric" id="cg-rotate" data-spec-id="cg-rotate" placeholder="60">
+      </div>
+    </div>
+    <div class="hint">CoinGecko is rate-limited. Use moderate refresh values.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Behavior</h2>
+    <div id="cg-toggles"></div>
+  </div>
+
+  <div class="panel actions">
+    <span class="atext">Save CoinGecko settings.</span>
+    <button type="button" class="btn ghost" id="cg-reload" data-spec-id="cg-reload">Reload CoinGecko</button>
+    <button type="button" class="btn" id="cg-save" data-spec-id="cg-save">Save CoinGecko</button>
+  </div>
+</section>
+
+<!-- ============================= Stock ============================= -->
+<section class="view" id="view-stock">
+  <div class="hero">
+    <div class="eyebrow">Stock App</div>
+    <h1>Yahoo Finance Watchlist</h1>
+    <p class="lead">Configure symbols, chart interval, refresh, and animation.</p>
+    <div class="chips">
+      <span class="chip">K-Line <b id="chip-stock-kline">-</b></span>
+      <span class="chip">Chart <b id="chip-stock-chart">-</b></span>
+      <span class="chip">Refresh <b id="chip-stock-refresh">-</b></span>
+      <span class="chip">Symbols <b id="chip-stock-symbols">-</b></span>
+      <span class="chip">Loop <b id="chip-stock-loop">-</b></span>
+    </div>
+    <button type="button" class="btn" id="stock-open" data-spec-id="stock-open">Open This App</button>
+  </div>
+
+  <div class="panel">
+    <h2>Codes and optional names</h2>
+    <p class="pnote">Use exact Yahoo Finance symbols. Name is optional. Examples: AAPL, BTC-USD, EURUSD=X, GC=F.</p>
+    <div class="grid2" id="stock-slots"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Chart</h2>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="stock-chart">Chart Type</label>
+        <select id="stock-chart" data-spec-id="stock-chart">
+          <option value="0">Candlestick</option>
+          <option value="1">Line</option>
+        </select>
+      </div>
+      <div>
+        <label class="fld" for="stock-kline">K-Line Interval</label>
+        <select id="stock-kline" data-spec-id="stock-kline"></select>
+      </div>
+    </div>
+    <div class="hint">Some intervals may return sparse data. Try another interval first.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Behavior</h2>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="stock-refresh">Data Refresh (sec)</label>
+        <input type="text" inputmode="numeric" id="stock-refresh" data-spec-id="stock-refresh" placeholder="30">
+      </div>
+    </div>
+    <div id="stock-toggles"></div>
+  </div>
+
+  <div class="panel actions">
+    <span class="atext">Save stock settings.</span>
+    <button type="button" class="btn ghost" id="stock-reload" data-spec-id="stock-reload">Reload Stock</button>
+    <button type="button" class="btn" id="stock-save" data-spec-id="stock-save">Save Stock</button>
+  </div>
+</section>
+
+<!-- ============================= Weather ============================= -->
+<section class="view" id="view-weather">
+  <div class="hero">
+    <div class="eyebrow">Weather</div>
+    <h1>Weather Settings</h1>
+    <p class="lead">Set city, units, an optional OpenWeather key, and weather GIFs.</p>
+    <div class="chips">
+      <span class="chip">City <b id="chip-weather-city">-</b></span>
+      <span class="chip">Units <b id="chip-weather-units">-</b></span>
+      <span class="chip">API <b id="chip-weather-api">-</b></span>
+      <span class="chip">GIF Path <b>80x80</b></span>
+    </div>
+    <button type="button" class="btn" id="weather-open" data-spec-id="weather-open">Open This App</button>
+  </div>
+
+  <div class="panel">
+    <h2>Location</h2>
+    <div class="grid3">
+      <div>
+        <label class="fld" for="weather-city">City Code or Name</label>
+        <input type="text" id="weather-city" data-spec-id="weather-city" placeholder="Durban or 1007311">
+      </div>
+      <div>
+        <label class="fld" for="weather-nickname">Short Display Name</label>
+        <input type="text" id="weather-nickname" data-spec-id="weather-nickname" placeholder="Optional nickname">
+      </div>
+      <div>
+        <label class="fld" for="weather-interval">Weather Interval (min)</label>
+        <input type="text" inputmode="numeric" id="weather-interval" data-spec-id="weather-interval" placeholder="20">
+      </div>
+    </div>
+    <div class="hint">Unit is minutes. Higher values refresh less often.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Units</h2>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="weather-wind">Wind Speed</label>
+        <select id="weather-wind" data-spec-id="weather-wind">
+          <option value="m/s">m/s</option>
+          <option value="km/h">km/h</option>
+          <option value="mile/h">mile/h</option>
+        </select>
+      </div>
+      <div>
+        <label class="fld" for="weather-temp">Temperature</label>
+        <select id="weather-temp" data-spec-id="weather-temp">
+          <option value="&#176;C">&#176;C</option>
+          <option value="&#176;F">&#176;F</option>
+        </select>
+      </div>
+      <div>
+        <label class="fld" for="weather-pressure">Pressure</label>
+        <select id="weather-pressure" data-spec-id="weather-pressure">
+          <option value="hPa">hPa</option>
+          <option value="kPa">kPa</option>
+          <option value="mmHg">mmHg</option>
+          <option value="inHg">inHg</option>
+        </select>
+      </div>
+      <div>
+        <label class="fld" for="weather-apikey">OpenWeather API Key</label>
+        <div class="pwfield">
+          <input type="password" id="weather-apikey" data-spec-id="weather-apikey"
+                 placeholder="Optional" autocomplete="off">
+          <button type="button" class="pweye" id="weather-apikey-eye"
+                  data-spec-id="weather-apikey-eye"
+                  aria-label="Show API key" aria-pressed="false"></button>
+        </div>
+      </div>
+    </div>
+    <div class="hint">
+      Get a <a href="https://home.openweathermap.org/users/sign_up" target="_blank"
+         rel="noopener noreferrer" data-spec-id="owm-signup">free OWM key</a>, without one
+      'humidity', 'pressure' and 'feels-like' read zero in the app (keyless info comes from
+      Open-Meteo).<br>
+      NOTE: A new OWM key can take a couple of hours to start working.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>80&#215;80 icon library</h2>
+    <p class="pnote">Set active icon and manage the library.</p>
+    <div class="actions">
+      <span class="atext">Save location, units, and weather key settings.</span>
+      <button type="button" class="btn ghost" id="weather-reload" data-spec-id="weather-reload">Reload Weather</button>
+      <button type="button" class="btn" id="weather-save" data-spec-id="weather-save">Save Weather</button>
+    </div>
+    <div class="summary">
+      <div class="thumb" id="weather-active-thumb">No GIF</div>
+      <div class="stat s">Active<b id="weather-active-name">None</b></div>
+      <div class="stat s">Files<b id="weather-stat-files">0</b></div>
+      <div class="stat s">Library Used<b id="weather-stat-used">0KB</b></div>
+      <div class="stat s">Free<b id="weather-stat-free">0KB</b></div>
+    </div>
+    <div class="meter"><i id="weather-meter"></i></div>
+    <div class="toolbar">
+      <span>Path: /image/80x80.gif</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" id="weather-files-reload" data-spec-id="weather-files-reload">Reload</button>
+      <button type="button" class="btn danger" id="weather-files-clear" data-spec-id="weather-files-clear">Delete All</button>
+    </div>
+    <input type="file" id="weather-upload" data-spec-id="weather-upload" accept="image/gif" multiple style="display:none">
+    <div class="filegrid" id="weather-filegrid"></div>
+  </div>
+</section>
+
+<!-- ============================= Clock (time) ============================= -->
+<section class="view" id="view-time">
+  <div class="hero">
+    <div class="eyebrow">Time</div>
+    <h1>Time Settings</h1>
+    <p class="lead">Set colors, format, time zone, and NTP.</p>
+    <div class="chips">
+      <span class="chip">Clock <b id="chip-time-clock">-</b></span>
+      <span class="chip">Date <b id="chip-time-date">-</b></span>
+      <span class="chip">Time Zone <b id="chip-time-tz">-</b></span>
+      <span class="chip">NTP <b id="chip-time-ntp">-</b></span>
+    </div>
+    <button type="button" class="btn" id="time-open" data-spec-id="time-open">Open This App</button>
+  </div>
+
+  <div class="panel">
+    <h2>Color</h2>
+    <div class="grid3">
+      <div>
+        <label class="fld" for="time-color-hour">Hour</label>
+        <input type="color" id="time-color-hour" data-spec-id="time-color-hour" value="#ffffff">
+      </div>
+      <div>
+        <label class="fld" for="time-color-minute">Minute</label>
+        <input type="color" id="time-color-minute" data-spec-id="time-color-minute" value="#feba01">
+      </div>
+      <div>
+        <label class="fld" for="time-color-second">Second</label>
+        <input type="color" id="time-color-second" data-spec-id="time-color-second" value="#ff5900">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Format</h2>
+    <div id="time-toggles"></div>
+    <div class="grid3">
+      <div>
+        <label class="fld" for="time-day-format">Date Format</label>
+        <select id="time-day-format" data-spec-id="time-day-format">
+          <option value="1">DD/MM/YYYY</option>
+          <option value="2">YYYY/MM/DD</option>
+          <option value="3">MM/DD/YYYY</option>
+          <option value="4">MM/DD</option>
+          <option value="5">DD/MM</option>
+        </select>
+      </div>
+      <div>
+        <label class="fld" for="time-timezone">Time Zone</label>
+        <select id="time-timezone" data-spec-id="time-timezone"></select>
+      </div>
+      <div>
+        <label class="fld" for="time-ntp">NTP Server Domain</label>
+        <input type="text" id="time-ntp" data-spec-id="time-ntp" placeholder="pool.ntp.org">
+      </div>
+    </div>
+    <div class="hint">Auto uses the Weather city. Manual uses the selected UTC offset.</div>
+  </div>
+
+  <div class="panel actions">
+    <span class="atext">Save clock color, format, and NTP settings.</span>
+    <button type="button" class="btn ghost" id="time-reload" data-spec-id="time-reload">Reload Time</button>
+    <button type="button" class="btn" id="time-save" data-spec-id="time-save">Save Time</button>
+  </div>
+</section>
+
+<!-- ============================= Picture (image) ============================= -->
+<section class="view" id="view-image">
+  <div class="hero">
+    <div class="eyebrow">Image</div>
+    <h1>Image Library</h1>
+    <p class="lead">Set playback and manage files.</p>
+    <div class="chips">
+      <span class="chip">Auto Play <b id="chip-image-autoplay">-</b></span>
+      <span class="chip">Interval <b id="chip-image-interval">-</b></span>
+      <span class="chip">GIF Loop <b id="chip-image-loop">-</b></span>
+      <span class="chip">Free <b id="chip-image-free">-</b></span>
+    </div>
+    <button type="button" class="btn" id="image-open" data-spec-id="image-open">Open This App</button>
+  </div>
+
+  <div class="panel">
+    <h2>Playback</h2>
+    <div id="image-toggles"></div>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="image-interval">JPG Interval (sec)</label>
+        <input type="text" inputmode="numeric" id="image-interval" data-spec-id="image-interval" placeholder="30">
+      </div>
+      <div>
+        <label class="fld" for="image-gif-loop">GIF Loop Count</label>
+        <input type="text" inputmode="numeric" id="image-gif-loop" data-spec-id="image-gif-loop" placeholder="5">
+      </div>
+    </div>
+    <div class="hint">Use display-sized files for best results.</div>
+    <div class="actions" style="margin-top:10px">
+      <span class="atext">Save album playback settings.</span>
+      <button type="button" class="btn ghost" id="image-reload" data-spec-id="image-reload">Reload Image</button>
+      <button type="button" class="btn" id="image-save" data-spec-id="image-save">Save Image</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Image files</h2>
+    <p class="pnote">Set cover image, upload files, or delete files.</p>
+    <div class="summary">
+      <div class="thumb" id="image-active-thumb">No File</div>
+      <div class="stat s"><span id="image-active-label">Selected</span><b id="image-active-name">None</b></div>
+      <div class="stat s">Files<b id="image-stat-files">0</b></div>
+      <div class="stat s">Library Used<b id="image-stat-used">0KB</b></div>
+      <div class="stat s">Free<b id="image-stat-free">0KB</b></div>
+    </div>
+    <div class="meter"><i id="image-meter"></i></div>
+    <div class="toolbar">
+      <span>Path: /image</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" id="image-files-reload" data-spec-id="image-files-reload">Reload</button>
+      <button type="button" class="btn danger" id="image-files-clear" data-spec-id="image-files-clear">Delete All</button>
+    </div>
+    <input type="file" id="image-upload" data-spec-id="image-upload" accept="image/jpeg,image/gif" multiple style="display:none">
+    <div class="filegrid" id="image-filegrid"></div>
+  </div>
+</section>
+
+<!-- ============================= Monitor ============================= -->
+<section class="view" id="view-monitor">
+  <div class="hero">
+    <div class="eyebrow">Monitor</div>
+    <h1>Monitor Settings</h1>
+    <p class="lead">Set host and refresh interval. Manual: <a href="https://github.com/sweetlilmre/smoltv-pro" target="_blank" rel="noopener noreferrer">user manual</a>.</p>
+    <div class="chips">
+      <span class="chip">Host <b id="chip-monitor-host">-</b></span>
+      <span class="chip">Refresh <b id="chip-monitor-refresh">-</b></span>
+      <span class="chip">Transport <b>HTTP /sse</b></span>
+      <span class="chip">LAN <b>Required</b></span>
+    </div>
+    <button type="button" class="btn" id="monitor-open" data-spec-id="monitor-open">Open This App</button>
+  </div>
+
+  <div class="panel">
+    <h2>Connection</h2>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="monitor-host">Host IP or IP:Port</label>
+        <input type="text" id="monitor-host" data-spec-id="monitor-host" placeholder="192.168.1.100 or 192.168.1.100:80">
+      </div>
+      <div>
+        <label class="fld" for="monitor-interval">Refresh Interval (sec)</label>
+        <input type="text" inputmode="numeric" id="monitor-interval" data-spec-id="monitor-interval" placeholder="1">
+      </div>
+    </div>
+    <div class="hint">Default port is 80. Endpoint is <b>/sse</b>.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Requirements</h2>
+    <div class="checklist">
+      <div><div class="t">Same local network</div><div class="s">Device and host must be on the same LAN.</div></div>
+      <div><div class="t">Metrics server ready</div><div class="s">Your PC service must expose the HTTP stream.</div></div>
+      <div><div class="t">Stable refresh</div><div class="s">Start with 1 to 2 seconds.</div></div>
+    </div>
+  </div>
+
+  <div class="panel actions">
+    <span class="atext">Save monitor host and refresh interval.</span>
+    <button type="button" class="btn ghost" id="monitor-reload" data-spec-id="monitor-reload">Reload Monitor</button>
+    <button type="button" class="btn" id="monitor-save" data-spec-id="monitor-save">Save Monitor</button>
+  </div>
+</section>
+
+<!-- ============================= Settings ============================= -->
+<section class="view" id="view-settings">
+  <div class="hero">
+    <div class="eyebrow">Settings</div>
+    <h1>System Settings</h1>
+    <p class="lead">Network, display, startup, and actions.</p>
+    <div class="chips">
+      <span class="chip">Model <b id="chip-set-model">-</b></span>
+      <span class="chip">Version <b id="chip-set-version">-</b></span>
+      <span class="chip">Brightness <b id="chip-set-brightness">-</b></span>
+      <span class="chip">Wi-Fi <b id="chip-set-wifi">-</b></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Network</h2>
+    <p class="pnote">Saving Wi-Fi will reboot.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="wifi-select" data-spec-id="wifi-select" style="flex:1;min-width:200px">
+        <option value="">Click Here To Select Wi-Fi</option>
+      </select>
+      <button type="button" class="btn ghost" id="wifi-rescan" data-spec-id="wifi-rescan">Rescan</button>
+      <span class="chip">Found <b id="chip-wifi-found">0</b></span>
+    </div>
+    <div class="hint">Use a strong 2.4G Wi-Fi signal. 5G is not supported.</div>
+    <div class="grid3">
+      <div>
+        <label class="fld" for="wifi-ssid">SSID</label>
+        <input type="text" id="wifi-ssid" data-spec-id="wifi-ssid" placeholder="Select or type SSID">
+      </div>
+      <div>
+        <label class="fld" for="wifi-password">Password</label>
+        <div class="pwfield">
+          <input type="password" id="wifi-password" data-spec-id="wifi-password" placeholder="Wi-Fi password">
+          <button type="button" class="pweye" id="wifi-password-eye" data-spec-id="wifi-password-eye"
+                  aria-label="Show password" aria-pressed="false"></button>
+        </div>
+      </div>
+      <div>
+        <label class="fld" for="boot-delay">Boot Delay (sec)</label>
+        <input type="text" inputmode="numeric" id="boot-delay" data-spec-id="boot-delay" placeholder="30">
+      </div>
+    </div>
+    <div class="actions" style="margin-top:10px">
+      <span class="atext">Save Wi-Fi and boot delay.</span>
+      <button type="button" class="btn ghost" id="delay-save" data-spec-id="delay-save">Save Delay</button>
+      <button type="button" class="btn" id="wifi-save" data-spec-id="wifi-save">Save Wi-Fi</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Display</h2>
+    <label class="fld" for="display-brightness">Brightness<span id="display-brightness-val">: 50%</span></label>
+    <input type="range" min="0" max="100" value="50" id="display-brightness" data-spec-id="display-brightness">
+    <div id="settings-toggles"></div>
+    <div class="grid3">
+      <div>
+        <label class="fld" for="night-start">Start</label>
+        <select id="night-start" data-spec-id="night-start"></select>
+      </div>
+      <div>
+        <label class="fld" for="night-end">End</label>
+        <select id="night-end" data-spec-id="night-end"></select>
+      </div>
+      <div>
+        <label class="fld" for="night-brightness">Night Brightness<span id="night-brightness-val">: 50%</span></label>
+        <input type="range" min="0" max="100" value="50" id="night-brightness" data-spec-id="night-brightness">
+      </div>
+    </div>
+    <div class="actions" style="margin-top:10px">
+      <span class="atext">Save brightness and night mode.</span>
+      <button type="button" class="btn" id="display-save" data-spec-id="display-save">Save Display</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Startup</h2>
+    <label class="fld" for="boot-app">Auto Start App</label>
+    <select id="boot-app" data-spec-id="boot-app"></select>
+    <div class="hint">Disabled apps are skipped at startup and app cycling.</div>
+    <div id="app-grid" style="margin-top:10px"></div>
+    <div class="toolbar" style="margin-top:12px">
+      <span>Quick Navigation</span>
+      <span class="s">Send navigation commands from this page.</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" id="nav-left" data-spec-id="nav-left">&#8592; Left</button>
+      <button type="button" class="btn ghost" id="nav-right" data-spec-id="nav-right">&#8594; Right</button>
+      <button type="button" class="btn ghost" id="nav-enter" data-spec-id="nav-enter">&#9166; Enter/Exit</button>
+    </div>
+    <div class="actions" style="margin-top:10px">
+      <span class="atext">Save startup app and app states.</span>
+      <button type="button" class="btn" id="startup-save" data-spec-id="startup-save">Save Startup</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Actions</h2>
+    <p class="pnote">Reset keeps uploaded media. Firmware: <a href="https://github.com/sweetlilmre/smoltv-pro" target="_blank" rel="noopener">https://github.com/sweetlilmre/smoltv-pro</a></p>
+    <div class="actions">
+      <a class="btn ghost" href="/update" target="_blank" rel="noopener" id="firmware-update-link" data-spec-id="firmware-update-link" style="text-decoration:none">Firmware Update</a>
+      <button type="button" class="btn ghost" id="device-reboot" data-spec-id="device-reboot">Reboot</button>
+      <button type="button" class="btn danger" id="device-reset" data-spec-id="device-reset">Factory Reset</button>
+    </div>
+  </div>
+
+  <div class="panel actions">
+    <span class="atext">System controls.</span>
+    <button type="button" class="btn ghost" id="settings-reload" data-spec-id="settings-reload">Reload Settings</button>
+  </div>
+</section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="upload-overlay">
+  <div class="box">
+    <h3 id="upload-title">Uploading</h3>
+    <div class="pct" id="upload-pct">0%</div>
+    <div class="meter"><i id="upload-meter"></i></div>
+    <div class="meta" id="upload-meta" style="margin-top:8px">Preparing files...</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var enc = encodeURIComponent;
+
+  // ======================= static vocab =======================
+  var VIEWS = ['btc', 'cg', 'stock', 'weather', 'time', 'image', 'monitor', 'settings'];
+  var VIEW_LABEL = { btc: 'Bitcoin', cg: 'CoinGecko', stock: 'Stock', weather: 'Weather',
+    time: 'Time', image: 'Image', monitor: 'Monitor', settings: 'Settings' };
+  var APPS = [
+    { key: 'bitcoin', label: 'Bitcoin', wire: 'BitCoin' },
+    { key: 'coingecko', label: 'CoinGecko', wire: 'CoinGecko' },
+    { key: 'stock', label: 'Stock', wire: 'Stock' },
+    { key: 'weather', label: 'Weather', wire: 'Weather' },
+    { key: 'picture', label: 'Picture', wire: 'Picture' },
+    { key: 'monitor', label: 'Monitor', wire: 'Monitor' },
+    { key: 'clock', label: 'Clock', wire: 'Clock' },
+    { key: 'idea', label: 'Idea', wire: 'Idea' },
+    { key: 'settings', label: 'Settings', wire: 'Settings' }
+  ];
+  var THEME_CARDS = [
+    ['0', '1-Coin Chart', 'Price, change, chart, clock'],
+    ['1', '1-Coin Large', 'Large text with clock'],
+    ['2', '2-Coin Split', 'Two symbols vertically'],
+    ['3', '3-Coin Compact', 'Three symbols stacked']
+  ];
+  var CHART_CARDS = [
+    ['0', 'Candlestick', 'OHLC view for traders'],
+    ['1', 'Line', 'Minimal trend chart']
+  ];
+  var TZ = [
+    [-720, 'UTC-12:00'], [-660, 'UTC-11:00'], [-600, 'UTC-10:00'],
+    [-570, 'UTC-09:30'], [-540, 'UTC-09:00'], [-480, 'UTC-08:00'],
+    [-420, 'UTC-07:00'], [-360, 'UTC-06:00'], [-300, 'UTC-05:00'],
+    [-240, 'UTC-04:00'], [-210, 'UTC-03:30'], [-180, 'UTC-03:00'],
+    [-120, 'UTC-02:00'], [-60, 'UTC-01:00'], [0, 'UTC+00:00'],
+    [60, 'UTC+01:00'], [120, 'UTC+02:00'], [180, 'UTC+03:00'],
+    [210, 'UTC+03:30'], [240, 'UTC+04:00'], [270, 'UTC+04:30'],
+    [300, 'UTC+05:00'], [330, 'UTC+05:30'], [345, 'UTC+05:45'],
+    [360, 'UTC+06:00'], [390, 'UTC+06:30'], [420, 'UTC+07:00'],
+    [480, 'UTC+08:00'], [525, 'UTC+08:45'], [540, 'UTC+09:00'],
+    [570, 'UTC+09:30'], [600, 'UTC+10:00'], [630, 'UTC+10:30'],
+    [660, 'UTC+11:00'], [720, 'UTC+12:00'], [765, 'UTC+12:45'],
+    [780, 'UTC+13:00'], [825, 'UTC+13:45'], [840, 'UTC+14:00']
+  ];
+
+  // ======================= state =======================
+  var state = {
+    aps: [],                        // last settings Wi-Fi scan
+    media: { weather: [], image: [] },
+    space: { total: 0, free: 0 },
+    spaceLoaded: false,
+    version: { m: '-', v: '-' },
+    appFlags: {},                   // key -> enabled
+    weatherGif: '',                 // active weather GIF path
+    albumPath: '',                  // selected album image path
+    albumAutoplay: false,
+    sel: { btcTheme: '0', btcChart: '0', cgTheme: '0' },
+    uploading: false
+  };
+  APPS.forEach(function (a) { state.appFlags[a.key] = true; });
+
+  // ======================= helpers =======================
+  function flag(v) { return v === 1 || v === '1' || v === true; }
+  function str(v, d) { return (v === undefined || v === null) ? d : String(v); }
+  function intOr(v, d) {
+    var n = parseInt(v, 10);
+    return isFinite(n) ? n : d;
+  }
+  function intVal(id, d) { return intOr($(id).value, d); }
+  function clamp(n, lo, hi) { return Math.min(hi, Math.max(lo, n)); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmtOffset(mins) {
+    var m = intOr(mins, 0);
+    var sign = m < 0 ? '-' : '+';
+    var a = Math.abs(m);
+    return 'UTC' + sign + pad2(Math.floor(a / 60)) + ':' + pad2(a % 60);
+  }
+  function fmtBytes(n) {
+    n = Number(n) || 0;
+    if (n < 1024) { return n + ' B'; }
+    if (n < 1048576) {
+      var kb = n / 1024;
+      return (n < 10240 ? kb.toFixed(1) : String(Math.round(kb))) + ' KB';
+    }
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+  function segEncode(path) {
+    return path.split('/').map(enc).join('/');
+  }
+
+  var toastTimer = null;
+  function toastMsg(msg, ok) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + (ok === false ? 'fail' : 'ok');
+    if (toastTimer) { clearTimeout(toastTimer); }
+    toastTimer = setTimeout(function () { el.className = 'toast'; }, 2400);
+  }
+
+  var busyCount = 0;
+  function busyStart() { busyCount++; document.body.classList.add('busy'); }
+  function busyEnd() {
+    busyCount = Math.max(0, busyCount - 1);
+    if (busyCount === 0) { document.body.classList.remove('busy'); }
+  }
+
+  // ======================= transport =======================
+  function buster(url) {
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+  }
+  // Config/state read: cache-buster + no-store; failures yield {} silently.
+  function readJson(url) {
+    return fetch(buster(url), { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) { return {}; }
+        return res.json().catch(function () { return {}; });
+      })
+      .catch(function () { return {}; });
+  }
+  // /set write: GET, NO cache-buster, no-store; success = 2xx AND body trims to exactly "OK".
+  function doSet(qs) {
+    return fetch('/set?' + qs, { cache: 'no-store' })
+      .then(function (res) {
+        return res.text().then(function (text) {
+          if (res.ok && text.trim() === 'OK') { return { ok: true }; }
+          return { ok: false, msg: text.trim() || ('HTTP ' + res.status) };
+        });
+      })
+      .catch(function (e) { return { ok: false, msg: (e && e.message) ? e.message : String(e) }; });
+  }
+  // Fire-and-forget /set: response ignored, transport errors swallowed.
+  function fireSet(qs) {
+    fetch('/set?' + qs, { cache: 'no-store' }).catch(function () {});
+  }
+  function chain(steps) {
+    // strictly sequential; stops at the first failure
+    var i = 0;
+    function next() {
+      if (i >= steps.length) { return Promise.resolve({ ok: true }); }
+      return doSet(steps[i++]).then(function (r) {
+        return r.ok ? next() : r;
+      });
+    }
+    return next();
+  }
+
+  // ======================= resource groups =======================
+  function parseFilelist(html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var rows = doc.querySelectorAll('table tbody tr');
+    var out = [];
+    rows.forEach(function (row) {
+      var a = row.querySelector('a');
+      var cells = row.cells;
+      if (!a || !cells || cells.length < 3) { return; }
+      var path = a.getAttribute('href') || '';
+      if (path.charAt(0) !== '/') { return; }
+      var digits = (cells[2].textContent || '').replace(/\D/g, '');
+      out.push({
+        path: path,
+        name: (a.textContent || '').trim(),
+        sizeKB: digits ? parseInt(digits, 10) : 0
+      });
+    });
+    return out;
+  }
+  // Media list reads: cache-buster, no-store; transport errors are NOT swallowed.
+  function readFilelist(dir) {
+    var url = '/filelist?dir=' + enc(dir) + '&_=' + Date.now();
+    return fetch(url, { cache: 'no-store' })
+      .then(function (res) { return res.text(); })
+      .then(parseFilelist);
+  }
+
+  var GROUP_FETCH = {
+    btc: function () {
+      return Promise.all([
+        readJson('/.sys/coin2.json'), readJson('/.sys/cr.json'),
+        readJson('/.sys/k.json'), readJson('/.sys/c_chart.json'),
+        readJson('/.sys/c_theme.json')
+      ]).then(function (r) {
+        var coin2 = r[0], cr = r[1], k = r[2], cchart = r[3], ctheme = r[4];
+        $('btc-pct-mode').value = str(coin2.c_pct_mode, '0');
+        $('btc-refresh').value = String(intOr(coin2.c_i, 30));
+        $('btc-loop').checked = flag(coin2.c_l !== undefined ? coin2.c_l : '1');
+        $('btc-animation').checked = flag(coin2.c_ani !== undefined ? coin2.c_ani : '0');
+        $('btc-loading').checked = flag(coin2.c_loading !== undefined ? coin2.c_loading : '1');
+        $('btc-clock').checked = flag(coin2.c_clock !== undefined ? coin2.c_clock : '0');
+        for (var i = 0; i < 12; i++) {
+          $('btc-symbol-' + i).value = str(coin2['cin' + i], '');
+          $('btc-name-' + i).value = str(coin2['cn' + i], '');
+        }
+        $('btc-rotate').value = String(intOr(cr.rot_i, 10));
+        $('btc-kline').value = str(k.k, '1d');
+        state.sel.btcChart = str(cchart.c_chart, '0');
+        state.sel.btcTheme = str(ctheme.c_theme, '0');
+        renderCards();
+      });
+    },
+    cg: function () {
+      return Promise.all([
+        readJson('/.sys/cgk.json'), readJson('/.sys/cg_range.json'),
+        readJson('/.sys/g_theme.json')
+      ]).then(function (r) {
+        var cgk = r[0], range = r[1], gtheme = r[2];
+        $('cg-refresh').value = String(intOr(cgk.g_i, 60));
+        $('cg-rotate').value = String(intOr(cgk.g_rot_i, 60));
+        $('cg-loop').checked = flag(cgk.g_l !== undefined ? cgk.g_l : '1');
+        $('cg-animation').checked = flag(cgk.g_ani !== undefined ? cgk.g_ani : '0');
+        $('cg-loading').checked = flag(cgk.g_loading !== undefined ? cgk.g_loading : '1');
+        $('cg-clock').checked = flag(cgk.g_clock !== undefined ? cgk.g_clock : '0');
+        for (var i = 0; i < 12; i++) {
+          $('cg-symbol-' + i).value = str(cgk['gin' + i], '');
+        }
+        $('cg-range').value = str(range.range, '30d');
+        state.sel.cgTheme = str(gtheme.g_theme, '0');
+        renderCards();
+      });
+    },
+    stock: function () {
+      return Promise.all([
+        readJson('/.sys/stock2.json'), readJson('/.sys/stk.json'),
+        readJson('/.sys/st_chart.json')
+      ]).then(function (r) {
+        var s2 = r[0], stk = r[1], sc = r[2];
+        $('stock-refresh').value = String(intOr(s2.s_i, 30));
+        $('stock-loop').checked = flag(s2.s_l !== undefined ? s2.s_l : '0');
+        $('stock-animation').checked = flag(s2.s_ani !== undefined ? s2.s_ani : '0');
+        for (var i = 0; i < 10; i++) {
+          $('stock-symbol-' + i).value = str(s2['c' + i], '');
+          $('stock-name-' + i).value = str(s2['cn' + i], '');
+        }
+        $('stock-kline').value = str(stk.st_kline, '1d');
+        $('stock-chart').value = str(sc.st_chart, '0');
+      });
+    },
+    weather: function () {
+      return Promise.all([
+        readJson('/.sys/gif.json'), readJson('/.sys/city.json'),
+        readJson('/.sys/unit.json'), readJson('/.sys/key.json')
+      ]).then(function (r) {
+        var gif = r[0], city = r[1], unit = r[2], key = r[3];
+        state.weatherGif = str(gif.gif, '');
+        $('weather-city').value = str(city.cd1, '');
+        $('weather-nickname').value = str(city.nickname, '');
+        $('weather-interval').value = String(intOr(city.w_i, 20));
+        $('weather-wind').value = str(unit.w_u, 'm/s');
+        $('weather-temp').value = str(unit.t_u, '°C');
+        $('weather-pressure').value = str(unit.p_u, 'hPa');
+        $('weather-apikey').value = str(key.key, '');
+      });
+    },
+    time: function () {
+      return Promise.all([
+        readJson('/.sys/hour12.json'), readJson('/.sys/ntp.json'),
+        readJson('/.sys/timecolor.json'), readJson('/.sys/day.json'),
+        readJson('/.sys/tz.json')
+      ]).then(function (r) {
+        var h12 = r[0], ntp = r[1], tc = r[2], day = r[3], tz = r[4];
+        $('time-hour12').checked = flag(h12.h !== undefined ? h12.h : '0');
+        $('time-ntp').value = str(ntp.ntp, '');
+        $('time-color-hour').value = str(tc.hc, '#FFFFFF').toLowerCase();
+        $('time-color-minute').value = str(tc.mc, '#FEBA01').toLowerCase();
+        $('time-color-second').value = str(tc.sc, '#FF5900').toLowerCase();
+        $('time-day-format').value = str(day.day, '1');
+        if (str(tz.mode, '0') === '1') {
+          $('time-timezone').value = String(intOr(tz.offset, 0));
+        } else {
+          $('time-timezone').value = 'auto';
+        }
+      });
+    },
+    image: function () {
+      return readJson('/.sys/album.json').then(function (album) {
+        state.albumAutoplay = flag(album.autoplay);
+        $('image-autoplay').checked = state.albumAutoplay;
+        $('image-interval').value = String(intOr(album.i_i, 30));
+        $('image-gif-loop').value = String(intOr(album.gif_loop, 5));
+        var p = album.path !== undefined ? album.path : album.activePath;
+        state.albumPath = str(p, '');
+      });
+    },
+    monitor: function () {
+      return readJson('/.sys/monitor.json').then(function (m) {
+        $('monitor-host').value = str(m.ip, '');
+        $('monitor-interval').value = String(Math.max(1, intOr(m.m_i, 1)));
+      });
+    },
+    settings: function () {
+      return Promise.all([
+        readJson('/.sys/brt.json'), readJson('/.sys/delay.json'),
+        readJson('/.sys/app.json'), readJson('/.sys/timebrt.json'),
+        readJson('/.sys/config.json'), readJson('/v.json')
+      ]).then(function (r) {
+        var brt = r[0], delay = r[1], app = r[2], tb = r[3], cfgj = r[4], v = r[5];
+        $('display-brightness').value = String(clamp(255 - intOr(brt.brt, 205), 0, 100));
+        $('boot-delay').value = String(intOr(delay.delay, 30));
+        // app.json: startup index under "theme" with fallbacks, per-app flags
+        var t = app.theme;
+        if (t === undefined) { t = app.auto_start_app_index; }
+        if (t === undefined) { t = app.autoStartAppIndex; }
+        var idx = parseInt(t, 10);
+        if (!isFinite(idx) || idx < -1 || idx > 8) { idx = -1; }
+        APPS.forEach(function (a) {
+          var f = app.apps && app.apps[a.key];
+          state.appFlags[a.key] = (f === undefined) ? true : flag(f);
+        });
+        if (idx >= 0 && !state.appFlags[APPS[idx].key]) { idx = -1; }
+        $('boot-app').value = String(idx);
+        $('night-enable').checked = flag(tb.en);
+        $('night-start').value = str(tb.t1, '22');
+        $('night-end').value = str(tb.t2, '7');
+        $('night-brightness').value = String(clamp(255 - intOr(tb.b2, 205), 0, 100));
+        $('wifi-ssid').value = str(cfgj.a, '');
+        $('wifi-password').value = str(cfgj.p, '');
+        state.version = { m: str(v.m, '-'), v: str(v.v, '-') };
+        renderAppGrid();
+      });
+    },
+    shared: function () {
+      return Promise.all([
+        readJson('/.sys/ccolor.json'), readJson('/.sys/sep.json')
+      ]).then(function (r) {
+        var cc = r[0], sep = r[1];
+        var map = {
+          'style-up-fg': [cc.up_fg, '#000000'], 'style-up-bg': [cc.up_bg, '#00ff00'],
+          'style-down-fg': [cc.down_fg, '#ffffff'], 'style-down-bg': [cc.down_bg, '#ff0000'],
+          'style-coin-fg': [cc.coin_fg, '#ffffff'], 'style-coin-bg': [cc.coin_bg, '#000000'],
+          'style-pct-up-fg': [cc.pct_up_fg, '#000000'], 'style-pct-up-bg': [cc.pct_up_bg, '#00ff00'],
+          'style-pct-down-fg': [cc.pct_down_fg, '#ffffff'], 'style-pct-down-bg': [cc.pct_down_bg, '#ff0000']
+        };
+        Object.keys(map).forEach(function (id) {
+          $(id).value = str(map[id][0], map[id][1]).toLowerCase();
+        });
+        $('fmt-decimal').value = str(sep.decimal_sep, '.');
+        $('fmt-thousand').value = str(sep.thousand_sep, ',');
+      });
+    },
+    space: function () {
+      return readJson('/space.json').then(function (s) {
+        state.space = { total: intOr(s.total, 0), free: intOr(s.free, 0) };
+        state.spaceLoaded = true;
+      });
+    },
+    weatherMedia: function () {
+      return readFilelist('/image/80x80.gif').then(function (list) {
+        state.media.weather = list;
+      });
+    },
+    imageMedia: function () {
+      return readFilelist('/image').then(function (list) {
+        state.media.image = list;
+      });
+    }
+  };
+
+  // At most one fetch per group per page lifetime unless forced; concurrent
+  // requests coalesce into the in-flight promise.
+  var groupCache = {};
+  function loadGroup(name, force) {
+    if (!force && groupCache[name]) { return groupCache[name]; }
+    var p = GROUP_FETCH[name]();
+    groupCache[name] = p;
+    p.then(null, function () {
+      // let a failed (media) group be retried on the next request
+      if (groupCache[name] === p) { delete groupCache[name]; }
+    });
+    return p;
+  }
+
+  var VIEW_GROUPS = {
+    btc: ['btc', 'shared'],
+    cg: ['cg'],
+    stock: ['stock'],
+    weather: ['weather', 'space', 'weatherMedia'],
+    time: ['time'],
+    image: ['image', 'space', 'imageMedia'],
+    monitor: ['monitor'],
+    settings: ['settings', 'shared', 'space']
+  };
+
+  // ======================= password reveal =======================
+  // The same pair of glyphs and the same wiring as portal.html. Stroked with currentColor so
+  // the button's own colour states (hover, revealed) carry the icon with them.
+  var EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"' +
+    ' stroke-linecap="round" aria-hidden="true">' +
+    '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_SHUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"' +
+    ' stroke-linecap="round" aria-hidden="true">' +
+    '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>' +
+    '<path d="M3 3l18 18"/></svg>';
+
+  function wireReveal(inputId, buttonId, noun) {
+    var inp = $(inputId), btn = $(buttonId);
+    btn.innerHTML = EYE_OPEN;
+    btn.addEventListener('click', function () {
+      var reveal = inp.type === 'password';
+      inp.type = reveal ? 'text' : 'password';
+      btn.innerHTML = reveal ? EYE_SHUT : EYE_OPEN;
+      btn.setAttribute('aria-label', (reveal ? 'Hide ' : 'Show ') + noun);
+      btn.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+    });
+  }
+  wireReveal('wifi-password', 'wifi-password-eye', 'password');
+  wireReveal('weather-apikey', 'weather-apikey-eye', 'API key');
+
+  // ======================= navigation =======================
+  var currentView = null;
+
+  function storageGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+  function storageSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+
+  function loadView(key, force) {
+    busyStart();
+    return Promise.all(VIEW_GROUPS[key].map(function (g) { return loadGroup(g, force); }))
+      .then(function () { renderAll(); })
+      .catch(function (e) {
+        renderAll();
+        toastMsg('Load failed: ' + ((e && e.message) ? e.message : String(e)), false);
+      })
+      .then(function () { busyEnd(); });
+  }
+
+  // The URL carries no hash until the first navigation, so the initial view
+  // is applied with this set.
+  var booting = true;
+
+  // force is the caller's decision: the System tab and startup force a
+  // refetch, other tab clicks and hash navigation do not.
+  function showView(key, force) {
+    var f = !!force;
+    currentView = key;
+    VIEWS.forEach(function (v) {
+      var tab = $('nav-tab-' + v);
+      if (tab) { tab.classList.toggle('selected', v === key); }
+      $('view-' + v).classList.toggle('current', v === key);
+    });
+    storageSet('gm_pro_active_tab', key);
+    if (!booting) { history.replaceState(null, '', '#' + key); }
+    return loadView(key, f);
+  }
+
+  window.addEventListener('hashchange', function () {
+    var k = location.hash.slice(1);
+    if (VIEWS.indexOf(k) < 0) { return; }   // invalid hashes ignored
+    if (k === currentView) { return; }
+    showView(k);                            // settings forced inside showView
+  });
+
+  // System refetches on every visit; the app tabs use whatever is already cached.
+  VIEWS.forEach(function (v) {
+    $('nav-tab-' + v).addEventListener('click', function () {
+      showView(v, v === 'settings');
+    });
+  });
+
+  function reloadCurrent() {
+    busyStart();
+    return Promise.all(VIEW_GROUPS[currentView].map(function (g) { return loadGroup(g, true); }))
+      .then(function () {
+        renderAll();
+        toastMsg(VIEW_LABEL[currentView] + ' refreshed.', true);
+      })
+      .catch(function (e) {
+        renderAll();
+        toastMsg('Load failed: ' + ((e && e.message) ? e.message : String(e)), false);
+      })
+      .then(function () { busyEnd(); });
+  }
+  ['btc-reload', 'cg-reload', 'stock-reload', 'weather-reload', 'time-reload',
+    'image-reload', 'monitor-reload', 'settings-reload'].forEach(function (id) {
+    $(id).addEventListener('click', reloadCurrent);
+  });
+
+  function reloadMediaGroup(group) {
+    busyStart();
+    return Promise.all([loadGroup(group, true)])
+      .then(function () { renderAll(); })
+      .catch(function (e) {
+        toastMsg('Load failed: ' + ((e && e.message) ? e.message : String(e)), false);
+      })
+      .then(function () { busyEnd(); });
+  }
+  $('weather-files-reload').addEventListener('click', function () { reloadMediaGroup('weatherMedia'); });
+  $('image-files-reload').addEventListener('click', function () { reloadMediaGroup('imageMedia'); });
+
+  // ======================= dynamic control construction =======================
+  function makeSlots(container, count, mk) {
+    var box = $(container);
+    for (var i = 0; i < count; i++) { box.appendChild(mk(i)); }
+  }
+  function slotRow(i, fields) {
+    var row = document.createElement('div');
+    row.className = 'slot';
+    var n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = String(i + 1);
+    row.appendChild(n);
+    fields.forEach(function (f) {
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.id = f.id;
+      inp.setAttribute('data-spec-id', f.id);
+      inp.placeholder = f.ph;
+      row.appendChild(inp);
+    });
+    return row;
+  }
+  makeSlots('btc-slots', 12, function (i) {
+    return slotRow(i, [
+      { id: 'btc-symbol-' + i, ph: 'BTCUSDT' },
+      { id: 'btc-name-' + i, ph: 'Optional' }
+    ]);
+  });
+  makeSlots('cg-slots', 12, function (i) {
+    return slotRow(i, [{ id: 'cg-symbol-' + i, ph: 'bitcoin' }]);
+  });
+  makeSlots('stock-slots', 10, function (i) {
+    return slotRow(i, [
+      { id: 'stock-symbol-' + i, ph: 'AAPL' },
+      { id: 'stock-name-' + i, ph: 'Optional' }
+    ]);
+  });
+
+  function makeCards(containerId, defs, specPrefix, onPick) {
+    var box = $(containerId);
+    defs.forEach(function (d) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'selcard';
+      b.setAttribute('data-spec-id', specPrefix + d[0]);
+      b.dataset.value = d[0];
+      var t = document.createElement('div');
+      t.className = 't';
+      t.textContent = d[1];
+      var s = document.createElement('div');
+      s.className = 's';
+      s.textContent = d[2];
+      b.appendChild(t);
+      b.appendChild(s);
+      b.addEventListener('click', function () { onPick(d[0]); });
+      box.appendChild(b);
+    });
+  }
+  makeCards('btc-theme-cards', THEME_CARDS, 'btc-theme-', function (v) {
+    state.sel.btcTheme = v;
+    renderCards();
+    busyStart();
+    doSet('c_theme=' + enc(v)).then(function (r) {
+      busyEnd();
+      if (r.ok) { toastMsg('Bitcoin theme applied.', true); }
+      else { toastMsg('Theme apply failed: ' + r.msg, false); }
+    });
+  });
+  // Bitcoin chart-shape cards: selection only, NO immediate request.
+  makeCards('btc-chart-cards', CHART_CARDS, 'btc-chart-', function (v) {
+    state.sel.btcChart = v;
+    renderCards();
+  });
+  makeCards('cg-theme-cards', THEME_CARDS, 'cg-theme-', function (v) {
+    state.sel.cgTheme = v;
+    renderCards();
+    busyStart();
+    doSet('g_theme=' + enc(v)).then(function (r) {
+      busyEnd();
+      if (r.ok) { toastMsg('CoinGecko theme applied.', true); }
+      else { toastMsg('Theme apply failed: ' + r.msg, false); }
+    });
+  });
+  function renderCards() {
+    [['btc-theme-cards', state.sel.btcTheme],
+     ['btc-chart-cards', state.sel.btcChart],
+     ['cg-theme-cards', state.sel.cgTheme]].forEach(function (pair) {
+      var kids = $(pair[0]).children;
+      for (var i = 0; i < kids.length; i++) {
+        kids[i].classList.toggle('selected', kids[i].dataset.value === pair[1]);
+      }
+    });
+  }
+
+  function makeToggle(id, title, sub, checked) {
+    var lab = document.createElement('label');
+    lab.className = 'toggle';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = id;
+    cb.setAttribute('data-spec-id', id);
+    cb.checked = !!checked;
+    var txt = document.createElement('div');
+    var tt = document.createElement('div');
+    tt.className = 't';
+    tt.textContent = title;
+    var ts = document.createElement('div');
+    ts.className = 's';
+    ts.textContent = sub;
+    txt.appendChild(tt);
+    txt.appendChild(ts);
+    lab.appendChild(cb);
+    lab.appendChild(txt);
+    return lab;
+  }
+  var btcTog = $('btc-toggles');
+  btcTog.appendChild(makeToggle('btc-loop', 'Rotate symbols', 'Cycle through the configured pairs automatically.', true));
+  btcTog.appendChild(makeToggle('btc-animation', 'Chart animation', 'Keep animated transitions enabled.', false));
+  btcTog.appendChild(makeToggle('btc-loading', 'Show loading', 'Display a loading message before refresh.', true));
+  btcTog.appendChild(makeToggle('btc-clock', 'Show clock', 'Overlay clock where the theme supports it.', false));
+  var cgTog = $('cg-toggles');
+  cgTog.appendChild(makeToggle('cg-loop', 'Rotate symbols', 'Cycle through configured CoinGecko IDs automatically.', true));
+  cgTog.appendChild(makeToggle('cg-animation', 'Chart animation', 'Keep animated chart transitions enabled.', false));
+  cgTog.appendChild(makeToggle('cg-loading', 'Show loading', 'Display a loading message before update or page switch.', true));
+  cgTog.appendChild(makeToggle('cg-clock', 'Show clock', 'Overlay clock where the theme supports it.', false));
+  var stockTog = $('stock-toggles');
+  stockTog.appendChild(makeToggle('stock-loop', 'Loop symbols', 'Rotate through the configured stock symbols automatically.', false));
+  stockTog.appendChild(makeToggle('stock-animation', 'Chart animation', 'Keep candlestick/line transitions enabled.', false));
+  $('time-toggles').appendChild(makeToggle('time-hour12', '12-Hour Clock', '24-hour display stays default unless this is enabled.', false));
+  $('image-toggles').appendChild(makeToggle('image-autoplay', 'Auto display', 'Cycle through stored images automatically.', false));
+  $('settings-toggles').appendChild(makeToggle('night-enable', 'Night Mode', 'Apply reduced brightness between the selected hours.', false));
+
+  // K-line dropdowns
+  ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
+    .forEach(function (v) {
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      if (v === '1d') { o.selected = true; }
+      $('btc-kline').appendChild(o);
+    });
+  ['1m', '2m', '5m', '15m', '30m', '1h', '1d', '5d', '1wk', '1mo'].forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    if (v === '1d') { o.selected = true; }
+    $('stock-kline').appendChild(o);
+  });
+  ['24h', '48h', '96h', '7d', '15d', '30d', '60d', '90d', '180d'].forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    if (v === '30d') { o.selected = true; }
+    $('cg-range').appendChild(o);
+  });
+
+  // Market Style pickers
+  [['style-up-fg', 'Up Price Text', '#000000'], ['style-up-bg', 'Up Background', '#00ff00'],
+   ['style-down-fg', 'Down Price Text', '#ffffff'], ['style-down-bg', 'Down Background', '#ff0000'],
+   ['style-coin-fg', 'Coin Name Text', '#ffffff'], ['style-coin-bg', 'Coin Name Background', '#000000'],
+   ['style-pct-up-fg', 'Percent Up Text', '#000000'], ['style-pct-up-bg', 'Percent Up Background', '#00ff00'],
+   ['style-pct-down-fg', 'Percent Down Text', '#ffffff'], ['style-pct-down-bg', 'Percent Down Background', '#ff0000']]
+    .forEach(function (d) {
+      var box = document.createElement('div');
+      var lab = document.createElement('label');
+      lab.className = 'fld';
+      lab.htmlFor = d[0];
+      lab.textContent = d[1];
+      var inp = document.createElement('input');
+      inp.type = 'color';
+      inp.id = d[0];
+      inp.setAttribute('data-spec-id', d[0]);
+      inp.value = d[2];
+      box.appendChild(lab);
+      box.appendChild(inp);
+      $('style-pickers').appendChild(box);
+    });
+
+  // Time-zone dropdown (index variant: leading auto, includes 825)
+  (function () {
+    var sel = $('time-timezone');
+    var auto = document.createElement('option');
+    auto.value = 'auto';
+    auto.textContent = 'Auto (Weather city)';
+    auto.selected = true;
+    sel.appendChild(auto);
+    TZ.forEach(function (row) {
+      var o = document.createElement('option');
+      o.value = String(row[0]);
+      o.textContent = row[1];
+      sel.appendChild(o);
+    });
+  })();
+
+  // Night mode hour dropdowns
+  (function () {
+    var start = $('night-start'), end = $('night-end');
+    for (var h = 0; h < 24; h++) {
+      var o1 = document.createElement('option');
+      o1.value = String(h);
+      o1.textContent = pad2(h) + ':00';
+      var o2 = o1.cloneNode(true);
+      start.appendChild(o1);
+      end.appendChild(o2);
+    }
+    start.value = '22';
+    end.value = '7';
+  })();
+
+  // Auto Start App dropdown
+  (function () {
+    var sel = $('boot-app');
+    var none = document.createElement('option');
+    none.value = '-1';
+    none.textContent = 'None';
+    sel.appendChild(none);
+    APPS.forEach(function (a, i) {
+      var o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = (i + 1) + '. ' + a.label;
+      sel.appendChild(o);
+    });
+  })();
+
+  // App grid (toggles + open buttons)
+  function renderAppGrid() {
+    var box = $('app-grid');
+    box.innerHTML = '';
+    APPS.forEach(function (a) {
+      var row = document.createElement('div');
+      row.className = 'approw';
+      var tog = document.createElement('button');
+      tog.type = 'button';
+      tog.className = 'btn onoff' + (state.appFlags[a.key] ? ' on' : '');
+      tog.setAttribute('data-spec-id', 'app-toggle-' + a.key);
+      tog.textContent = state.appFlags[a.key] ? 'ON' : 'OFF';
+      tog.addEventListener('click', function () { toggleApp(a); });
+      var open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'btn mini';
+      open.setAttribute('data-spec-id', 'app-open-' + a.key);
+      open.textContent = 'Open';
+      open.disabled = !state.appFlags[a.key];
+      open.addEventListener('click', function () { openApp(a); });
+      var lbl = document.createElement('span');
+      lbl.className = 't';
+      lbl.textContent = a.label;
+      row.appendChild(tog);
+      row.appendChild(open);
+      row.appendChild(lbl);
+      box.appendChild(row);
+    });
+  }
+  renderAppGrid();
+
+  // ======================= chips / summaries =======================
+  function themeLabel(v) {
+    var hit = THEME_CARDS.filter(function (d) { return d[0] === v; })[0];
+    return hit ? hit[1] : v;
+  }
+  function selText(id) {
+    var s = $(id);
+    return (s.selectedIndex >= 0) ? s.options[s.selectedIndex].textContent : '';
+  }
+  function renderChips() {
+    // Bitcoin
+    $('chip-btc-theme').textContent = themeLabel(state.sel.btcTheme);
+    $('chip-btc-chart').textContent = state.sel.btcChart === '1' ? 'Line' : 'Candlestick';
+    $('chip-btc-interval').textContent = $('btc-kline').value;
+    $('chip-btc-refresh').textContent = intVal('btc-refresh', 30) + 's';
+    $('chip-btc-rotate').textContent = $('btc-loop').checked ? (intVal('btc-rotate', 10) + 's') : 'Off';
+    // CoinGecko
+    $('chip-cg-theme').textContent = themeLabel(state.sel.cgTheme);
+    $('chip-cg-range').textContent = $('cg-range').value;
+    $('chip-cg-refresh').textContent = intVal('cg-refresh', 60) + 's';
+    $('chip-cg-rotate').textContent = $('cg-loop').checked ? (intVal('cg-rotate', 60) + 's') : 'Off';
+    // Stock
+    $('chip-stock-kline').textContent = $('stock-kline').value;
+    $('chip-stock-chart').textContent = $('stock-chart').value === '1' ? 'Line' : 'Candlestick';
+    $('chip-stock-refresh').textContent = intVal('stock-refresh', 30) + 's';
+    var symCount = 0;
+    for (var i = 0; i < 10; i++) {
+      if ($('stock-symbol-' + i).value.trim()) { symCount++; }
+    }
+    $('chip-stock-symbols').textContent = String(symCount);
+    $('chip-stock-loop').textContent = $('stock-loop').checked ? 'On' : 'Off';
+    // Weather
+    var nick = $('weather-nickname').value.trim();
+    var city = $('weather-city').value.trim();
+    $('chip-weather-city').textContent = nick || city || 'Unset';
+    $('chip-weather-units').textContent = $('weather-temp').value === '°F' ? 'Imperial' : 'Metric';
+    $('chip-weather-api').textContent = $('weather-apikey').value.trim() ? 'OpenWeather' : 'Not set';
+    // Time
+    $('chip-time-clock').textContent = $('time-hour12').checked ? '12h' : '24h';
+    $('chip-time-date').textContent = selText('time-day-format');
+    var tzv = $('time-timezone').value;
+    $('chip-time-tz').textContent = tzv === 'auto' ? 'Auto' : fmtOffset(tzv);
+    $('chip-time-ntp').textContent = $('time-ntp').value.trim() || 'Default';
+    // Image
+    $('chip-image-autoplay').textContent = $('image-autoplay').checked ? 'On' : 'Off';
+    $('chip-image-interval').textContent = intVal('image-interval', 30) + 's';
+    $('chip-image-loop').textContent = String(intVal('image-gif-loop', 5));
+    $('chip-image-free').textContent = state.spaceLoaded ? fmtBytes(state.space.free) : '-';
+    // Monitor
+    $('chip-monitor-host').textContent = $('monitor-host').value.trim() || 'Unset';
+    $('chip-monitor-refresh').textContent = Math.max(1, intVal('monitor-interval', 1)) + 's';
+    // Settings
+    $('chip-set-model').textContent = state.version.m;
+    $('chip-set-version').textContent = state.version.v;
+    $('chip-set-brightness').textContent = $('display-brightness').value + '%';
+    // The sliders carry no scale, so each label states where its handle sits. Updated from
+    // here because this runs on every input and change event, and again after a load.
+    $('display-brightness-val').textContent = ': ' + $('display-brightness').value + '%';
+    $('night-brightness-val').textContent = ': ' + $('night-brightness').value + '%';
+    $('chip-set-wifi').textContent = $('wifi-ssid').value.trim() || 'Unconfigured';
+  }
+  document.addEventListener('input', renderChips);
+  document.addEventListener('change', renderChips);
+
+  function usedPct() {
+    if (!state.space.total) { return 0; }
+    return Math.round((state.space.total - state.space.free) / state.space.total * 100);
+  }
+
+  function trashIcon() {
+    var s = document.createElement('span');
+    s.textContent = '🗑';
+    s.setAttribute('aria-hidden', 'true');
+    return s;
+  }
+
+  function renderLibrary(kind) {
+    var isWeather = kind === 'weather';
+    var files = state.media[isWeather ? 'weather' : 'image'];
+    var grid = $(isWeather ? 'weather-filegrid' : 'image-filegrid');
+    grid.innerHTML = '';
+
+    // upload card
+    var up = document.createElement('label');
+    up.className = 'uploadcard' + (state.uploading ? ' disabled' : '');
+    up.htmlFor = isWeather ? 'weather-upload' : 'image-upload';
+    var plus = document.createElement('div');
+    plus.className = 'plus';
+    plus.textContent = '+';
+    var t1 = document.createElement('div');
+    t1.textContent = isWeather ? 'Add Weather GIF' : 'Add Image';
+    var t2 = document.createElement('div');
+    t2.textContent = isWeather ? 'GIF only · 80×80 preferred' : 'JPG or GIF · 240×240 preferred';
+    up.appendChild(plus);
+    up.appendChild(t1);
+    up.appendChild(t2);
+    grid.appendChild(up);
+
+    var activePath = isWeather ? state.weatherGif : (state.albumAutoplay ? null : state.albumPath);
+    files.forEach(function (f) {
+      var card = document.createElement('div');
+      card.className = 'filecard';
+      var img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = segEncode(f.path);
+      img.alt = f.name;
+      var nameEl = document.createElement('div');
+      nameEl.className = 'fname';
+      nameEl.textContent = f.name;
+      var sizeEl = document.createElement('div');
+      sizeEl.className = 'fsize';
+      sizeEl.textContent = f.sizeKB + 'KB';
+      var btns = document.createElement('div');
+      btns.className = 'fbtns';
+      var isActive = activePath !== null && f.path === activePath;
+      var setBtn = document.createElement('button');
+      setBtn.type = 'button';
+      setBtn.className = 'btn mini' + (isActive ? ' on' : '');
+      setBtn.textContent = isActive ? (isWeather ? 'Active' : 'Selected') : 'Set';
+      setBtn.setAttribute('data-spec-id', (isWeather ? 'weather-file-set-' : 'image-file-set-') + f.name);
+      setBtn.addEventListener('click', function () {
+        if (isWeather) { setWeatherGif(f.path); } else { setAlbumImage(f.path); }
+      });
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn mini';
+      delBtn.setAttribute('aria-label', 'Delete');
+      delBtn.setAttribute('data-spec-id', (isWeather ? 'weather-file-delete-' : 'image-file-delete-') + f.name);
+      delBtn.appendChild(trashIcon());
+      delBtn.addEventListener('click', function () { deleteFile(f.path); });
+      btns.appendChild(setBtn);
+      btns.appendChild(delBtn);
+      card.appendChild(img);
+      card.appendChild(nameEl);
+      card.appendChild(sizeEl);
+      card.appendChild(btns);
+      grid.appendChild(card);
+    });
+
+    // summary
+    var sumKB = files.reduce(function (a, f) { return a + f.sizeKB; }, 0);
+    var freeKB = Math.floor(state.space.free / 1024);
+    if (isWeather) {
+      var act = null;
+      for (var i = 0; i < files.length; i++) {
+        if (files[i].path === state.weatherGif) { act = files[i]; break; }
+      }
+      var thumb = $('weather-active-thumb');
+      thumb.innerHTML = '';
+      if (act) {
+        var im = document.createElement('img');
+        im.loading = 'lazy';
+        im.src = segEncode(act.path);
+        im.alt = act.name;
+        thumb.appendChild(im);
+      } else {
+        thumb.textContent = 'No GIF';
+      }
+      $('weather-active-name').textContent = act ? act.name : 'None';
+      $('weather-stat-files').textContent = String(files.length);
+      $('weather-stat-used').textContent = sumKB + 'KB';
+      $('weather-stat-free').textContent = freeKB + 'KB';
+      $('weather-meter').style.width = usedPct() + '%';
+    } else {
+      var selFile = null;
+      if (!state.albumAutoplay) {
+        for (var j = 0; j < files.length; j++) {
+          if (files[j].path === state.albumPath) { selFile = files[j]; break; }
+        }
+        // stored selection no longer present: treat as empty, show first file
+        if (!selFile && files.length) { selFile = files[0]; }
+      }
+      var ithumb = $('image-active-thumb');
+      ithumb.innerHTML = '';
+      var shown = state.albumAutoplay ? (files.length ? files[0] : null) : selFile;
+      if (shown) {
+        var iim = document.createElement('img');
+        iim.loading = 'lazy';
+        iim.src = segEncode(shown.path);
+        iim.alt = shown.name;
+        ithumb.appendChild(iim);
+      } else {
+        ithumb.textContent = 'No File';
+      }
+      $('image-active-label').textContent = state.albumAutoplay ? 'Auto Display' : 'Selected';
+      $('image-active-name').textContent = state.albumAutoplay
+        ? (files.length ? 'Auto Display' : 'None')
+        : (selFile ? selFile.name : 'None');
+      $('image-stat-files').textContent = String(files.length);
+      $('image-stat-used').textContent = sumKB + 'KB';
+      $('image-stat-free').textContent = freeKB + 'KB';
+      $('image-meter').style.width = usedPct() + '%';
+    }
+  }
+
+  function renderAll() {
+    renderCards();
+    renderChips();
+    renderAppGrid();
+    renderLibrary('weather');
+    renderLibrary('image');
+  }
+
+  // ======================= save actions =======================
+  function clearErr(sel) {
+    document.querySelectorAll('input.err').forEach(function (el) { el.classList.remove('err'); });
+  }
+  // returns null on validation failure (toast shown), else array of trimmed values
+  function readSymbols(prefix, count) {
+    clearErr();
+    var vals = [];
+    var inputs = [];
+    for (var i = 0; i < count; i++) {
+      var el = $(prefix + i);
+      inputs.push(el);
+      vals.push(el.value.trim());
+    }
+    var nonEmpty = vals.filter(function (v) { return v !== ''; });
+    if (!nonEmpty.length) {
+      toastMsg('Add at least one symbol before saving.', false);
+      return null;
+    }
+    var seen = {};
+    var dup = false;
+    for (var j = 0; j < vals.length; j++) {
+      var v = vals[j].toLowerCase();
+      if (!v) { continue; }
+      if (seen[v] !== undefined) {
+        inputs[j].classList.add('err');
+        inputs[seen[v]].classList.add('err');
+        dup = true;
+      } else {
+        seen[v] = j;
+      }
+    }
+    if (dup) {
+      toastMsg('Duplicate symbols are not allowed.', false);
+      return null;
+    }
+    return vals;
+  }
+
+  function runSave(promiseFactory) {
+    busyStart();
+    return promiseFactory().then(function () { busyEnd(); }, function () { busyEnd(); });
+  }
+
+  $('btc-save').addEventListener('click', function () {
+    var ids = readSymbols('btc-symbol-', 12);
+    if (!ids) { return; }
+    runSave(function () {
+      return chain([
+        'c_theme=' + enc(state.sel.btcTheme),
+        'c_chart=' + enc(state.sel.btcChart),
+        'kline=' + enc($('btc-kline').value)
+      ]).then(function (r) {
+        if (!r.ok) { return r; }
+        var p = new URLSearchParams();
+        var i;
+        for (i = 0; i < 12; i++) { p.append('cn' + i, $('btc-name-' + i).value.trim()); }
+        for (i = 0; i < 12; i++) { p.append('cin' + i, ids[i]); }
+        p.append('c_loading', $('btc-loading').checked ? '1' : '0');
+        p.append('c_clock', $('btc-clock').checked ? '1' : '0');
+        p.append('ani', $('btc-animation').checked ? '1' : '0');
+        p.append('c_pct_mode', $('btc-pct-mode').value);
+        p.append('c_i', String(intVal('btc-refresh', 30)));
+        p.append('c_l', $('btc-loop').checked ? '1' : '0');
+        p.append('rot_i', String(intVal('btc-rotate', 10)));
+        return doSet(p.toString());
+      }).then(function (r) {
+        if (r.ok) { toastMsg('Bitcoin settings saved.', true); }
+        else { toastMsg('Bitcoin save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  $('cg-save').addEventListener('click', function () {
+    var ids = readSymbols('cg-symbol-', 12);
+    if (!ids) { return; }
+    runSave(function () {
+      return chain([
+        'g_theme=' + enc(state.sel.cgTheme),
+        'g_range=' + enc($('cg-range').value)
+      ]).then(function (r) {
+        if (!r.ok) { return r; }
+        var p = new URLSearchParams();
+        for (var i = 0; i < 12; i++) { p.append('gin' + i, ids[i]); }
+        p.append('g_loading', $('cg-loading').checked ? '1' : '0');
+        p.append('g_clock', $('cg-clock').checked ? '1' : '0');
+        p.append('g_ani', $('cg-animation').checked ? '1' : '0');
+        p.append('g_i', String(intVal('cg-refresh', 60)));
+        p.append('g_l', $('cg-loop').checked ? '1' : '0');
+        p.append('g_rot_i', String(intVal('cg-rotate', 60)));
+        return doSet(p.toString());
+      }).then(function (r) {
+        if (r.ok) { toastMsg('CoinGecko settings saved.', true); }
+        else { toastMsg('CoinGecko save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  $('stock-save').addEventListener('click', function () {
+    var syms = readSymbols('stock-symbol-', 10);
+    if (!syms) { return; }
+    runSave(function () {
+      return chain([
+        'st_chart=' + enc($('stock-chart').value),
+        'st_kline=' + enc($('stock-kline').value)
+      ]).then(function (r) {
+        if (!r.ok) { return r; }
+        var p = new URLSearchParams();
+        p.append('s_i', String(intVal('stock-refresh', 30)));
+        p.append('s_l', $('stock-loop').checked ? '1' : '0');
+        p.append('s_ani', $('stock-animation').checked ? '1' : '0');
+        var i;
+        for (i = 0; i < 10; i++) { p.append('c' + i, syms[i]); }
+        for (i = 0; i < 10; i++) { p.append('cn' + i, $('stock-name-' + i).value.trim()); }
+        return doSet(p.toString());
+      }).then(function (r) {
+        if (r.ok) { toastMsg('Stock settings saved.', true); }
+        else { toastMsg('Stock save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  $('weather-save').addEventListener('click', function () {
+    var city = $('weather-city').value.trim();
+    if (!city) {
+      toastMsg('City code or name is required.', false);
+      return;
+    }
+    // An OpenWeather appid is 32 hexadecimal characters. Anything else is a paste error, and
+    // the device cannot tell you so - it just gets a 401 and quietly falls back to Open-Meteo.
+    var keyField = $('weather-apikey');
+    var keyVal = keyField.value.trim();
+    keyField.classList.remove('err');
+    if (keyVal !== '' && !/^[0-9a-fA-F]{32}$/.test(keyVal)) {
+      keyField.classList.add('err');
+      toastMsg('That is not an OpenWeather key: expected 32 hex characters, got ' +
+               keyVal.length + '.', false);
+      return;
+    }
+    runSave(function () {
+      var steps = [
+        'cd1=' + enc(city) + '&cd2=' + enc(city) +
+          '&nickname=' + enc($('weather-nickname').value.trim()) +
+          '&interval=' + enc(String(intVal('weather-interval', 20))),
+        'w_u=' + enc($('weather-wind').value) + '&t_u=' + enc($('weather-temp').value) +
+          '&p_u=' + enc($('weather-pressure').value)
+      ];
+      // Empty is never sent, so a blank field cannot clear a stored key - see the note in
+      // the panel. Clearing one needs /set?key= directly.
+      if (keyVal !== '') { steps.push('key=' + enc(keyVal)); }
+      return chain(steps).then(function (r) {
+        if (r.ok) { toastMsg('Weather settings saved.', true); }
+        else { toastMsg('Weather save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  $('time-save').addEventListener('click', function () {
+    runSave(function () {
+      var tzv = $('time-timezone').value;
+      var tzStep = (tzv === 'auto')
+        ? 'tz_mode=' + enc('auto') + '&tz_offset=' + enc('0')
+        : 'tz_mode=' + enc('manual') + '&tz_offset=' + enc(tzv);
+      return chain([
+        'hc=' + enc($('time-color-hour').value) + '&mc=' + enc($('time-color-minute').value) +
+          '&sc=' + enc($('time-color-second').value),
+        'hour=' + ($('time-hour12').checked ? '1' : '0'),
+        'day=' + enc($('time-day-format').value),
+        tzStep,
+        'ntp=' + enc($('time-ntp').value)   // sent even when empty
+      ]).then(function (r) {
+        if (r.ok) { toastMsg('Time settings saved.', true); }
+        else { toastMsg('Time save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  $('image-save').addEventListener('click', function () {
+    runSave(function () {
+      return doSet('gif_loop=' + enc(String(intVal('image-gif-loop', 5))) +
+        '&i_i=' + enc(String(intVal('image-interval', 30))) +
+        '&autoplay=' + ($('image-autoplay').checked ? '1' : '0'))
+        .then(function (r) {
+          if (r.ok) { toastMsg('Image settings saved.', true); }
+          else { toastMsg('Image save failed: ' + r.msg, false); }
+        });
+    });
+  });
+
+  $('monitor-save').addEventListener('click', function () {
+    var host = $('monitor-host').value.trim();
+    if (!host) {
+      toastMsg('Monitor host is required.', false);
+      return;
+    }
+    runSave(function () {
+      var mi = Math.max(1, intVal('monitor-interval', 1));
+      return doSet('ip=' + enc(host) + '&m_i=' + enc(String(mi))).then(function (r) {
+        if (r.ok) { toastMsg('Monitor settings saved.', true); }
+        else { toastMsg('Monitor save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  $('delay-save').addEventListener('click', function () {
+    runSave(function () {
+      return doSet('delay=' + enc(String(intVal('boot-delay', 30)))).then(function (r) {
+        if (r.ok) { toastMsg('Delay saved.', true); }
+        else { toastMsg('Delay save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  $('wifi-save').addEventListener('click', function () {
+    var ssid = $('wifi-ssid').value.trim();
+    var pw = $('wifi-password').value;    // untrimmed, sent exactly as typed
+    if (!ssid) {
+      toastMsg('SSID is required.', false);
+      return;
+    }
+    var ap = null;
+    for (var i = 0; i < state.aps.length; i++) {
+      if (state.aps[i].ss === ssid) { ap = state.aps[i]; break; }
+    }
+    if (ap && Number(ap.e) === 1) {
+      if (pw.length < 8) {
+        toastMsg('Encrypted Wi-Fi requires a password with at least 8 characters.', false);
+        return;
+      }
+    } else if (pw.length > 0 && pw.length < 8) {
+      toastMsg('Wi-Fi password must be at least 8 characters.', false);
+      return;
+    }
+    runSave(function () {
+      return fetch('/wifisave?s=' + enc(ssid) + '&p=' + enc(pw), { cache: 'no-store' })
+        .then(function (res) {
+          return res.text().then(function (text) {
+            if (res.ok && /saved/i.test(text)) {
+              toastMsg('Wi-Fi saved. Device will reboot.', true);
+            } else {
+              toastMsg('Wi-Fi save failed: ' + (text.trim() || ('HTTP ' + res.status)), false);
+            }
+          });
+        })
+        .catch(function (e) {
+          toastMsg('Wi-Fi save failed: ' + ((e && e.message) ? e.message : String(e)), false);
+        });
+    });
+  });
+
+  $('display-save').addEventListener('click', function () {
+    runSave(function () {
+      return chain([
+        'brt=' + enc($('display-brightness').value),
+        't1=' + enc($('night-start').value) + '&t2=' + enc($('night-end').value) +
+          '&b1=50&b2=' + enc($('night-brightness').value) +
+          '&en=' + ($('night-enable').checked ? '1' : '0')
+      ]).then(function (r) {
+        if (r.ok) { toastMsg('Display settings saved.', true); }
+        else { toastMsg('Display save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  function enabledCount() {
+    return APPS.reduce(function (n, a) { return n + (state.appFlags[a.key] ? 1 : 0); }, 0);
+  }
+  function buildStartupQuery() {
+    var idx = $('boot-app').value;
+    if (idx !== '-1') {
+      var app = APPS[parseInt(idx, 10)];
+      if (!app || !state.appFlags[app.key]) { idx = '-1'; }
+    }
+    var parts = ['theme=' + enc(idx)];
+    APPS.forEach(function (a) {
+      parts.push('app_' + a.key + '=' + (state.appFlags[a.key] ? '1' : '0'));
+    });
+    return parts.join('&');
+  }
+
+  $('startup-save').addEventListener('click', function () {
+    if (enabledCount() === 0) {
+      toastMsg('Keep at least one app enabled.', false);
+      return;
+    }
+    runSave(function () {
+      return doSet(buildStartupQuery()).then(function (r) {
+        if (r.ok) { toastMsg('Startup app saved.', true); }
+        else { toastMsg('Startup save failed: ' + r.msg, false); }
+      });
+    });
+  });
+
+  function toggleApp(a) {
+    var wasEnabled = state.appFlags[a.key];
+    if (wasEnabled && enabledCount() === 1) {
+      toastMsg('Keep at least one app enabled.', false);
+      return;
+    }
+    var bootSel = $('boot-app');
+    var prevBoot = bootSel.value;
+    state.appFlags[a.key] = !wasEnabled;
+    var resetBoot = false;
+    if (!state.appFlags[a.key] && prevBoot !== '-1' &&
+        APPS[parseInt(prevBoot, 10)] && APPS[parseInt(prevBoot, 10)].key === a.key) {
+      bootSel.value = '-1';
+      resetBoot = true;
+    }
+    renderAppGrid();
+    renderChips();
+    runSave(function () {
+      return doSet(buildStartupQuery()).then(function (r) {
+        if (r.ok) {
+          toastMsg(a.label + (state.appFlags[a.key] ? ' enabled.' : ' disabled.'), true);
+        } else {
+          state.appFlags[a.key] = wasEnabled;
+          if (resetBoot) { bootSel.value = prevBoot; }
+          renderAppGrid();
+          renderChips();
+          toastMsg('Startup save failed: ' + r.msg, false);
+        }
+      });
+    });
+  }
+
+  function openApp(a) {
+    if (!state.appFlags[a.key]) {
+      toastMsg(a.label + ' is disabled.', false);
+      return;
+    }
+    runSave(function () {
+      return doSet('open_app=' + enc(a.wire)).then(function (r) {
+        if (r.ok) { toastMsg(a.label + ' opened.', true); }
+        else { toastMsg('Open failed: ' + r.msg, false); }
+      });
+    });
+  }
+  function appByKey(k) {
+    return APPS.filter(function (a) { return a.key === k; })[0];
+  }
+  $('btc-open').addEventListener('click', function () { openApp(appByKey('bitcoin')); });
+  $('cg-open').addEventListener('click', function () { openApp(appByKey('coingecko')); });
+  $('stock-open').addEventListener('click', function () { openApp(appByKey('stock')); });
+  $('weather-open').addEventListener('click', function () { openApp(appByKey('weather')); });
+  $('time-open').addEventListener('click', function () { openApp(appByKey('clock')); });
+  $('image-open').addEventListener('click', function () { openApp(appByKey('picture')); });
+  $('monitor-open').addEventListener('click', function () { openApp(appByKey('monitor')); });
+
+  $('nav-left').addEventListener('click', function () {
+    fireSet('page=-1');
+    toastMsg('Sent: Left', true);
+  });
+  $('nav-right').addEventListener('click', function () {
+    fireSet('page=1');
+    toastMsg('Sent: Right', true);
+  });
+  $('nav-enter').addEventListener('click', function () {
+    fireSet('enter=-1');
+    toastMsg('Sent: Enter/Exit', true);
+  });
+  $('device-reboot').addEventListener('click', function () {
+    if (!window.confirm('Reboot the device now?')) { return; }
+    fireSet('reboot=1');
+    toastMsg('Reboot requested.', true);
+  });
+  $('device-reset').addEventListener('click', function () {
+    if (!window.confirm('Factory reset and reboot?')) { return; }
+    fireSet('reset=1');
+    toastMsg('Factory reset requested.', true);
+  });
+
+  // ======================= Settings Wi-Fi rescan =======================
+  function apOptionText(ap) {
+    var r = Number(ap.r);
+    if (!isFinite(r)) { r = 0; }
+    var label, icon;
+    if (r >= 70) { label = 'Strong'; icon = '📶🟢'; }
+    else if (r >= 40) { label = 'Medium'; icon = '📶🟠'; }
+    else { label = 'Weak'; icon = '📶🔴'; }
+    return icon + ' ' + label + ': ' + ap.ss + ' (' + r + '%)';
+  }
+
+  $('wifi-rescan').addEventListener('click', function () {
+    var btn = $('wifi-rescan');
+    var sel = $('wifi-select');
+    btn.disabled = true;
+    btn.textContent = 'Scanning...';
+    sel.innerHTML = '';
+    var scanning = document.createElement('option');
+    scanning.value = '';
+    scanning.textContent = 'Scanning Wi-Fi...';
+    sel.appendChild(scanning);
+    fetch(buster('/wifi.json'), { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) { return {}; }
+        return res.json().catch(function () { return {}; });
+      })
+      .catch(function () { return {}; })
+      .then(function (data) {
+        var aps = (data && Array.isArray(data.aps)) ? data.aps.slice() : [];
+        aps.sort(function (a, b) {
+          var ra = Number(a.r); var rb = Number(b.r);
+          if (!isFinite(ra)) { ra = 0; }
+          if (!isFinite(rb)) { rb = 0; }
+          return rb - ra;
+        });
+        state.aps = aps;
+        sel.innerHTML = '';
+        var first = document.createElement('option');
+        first.value = '';
+        first.textContent = 'Click Here To Select Wi-Fi';
+        sel.appendChild(first);
+        aps.forEach(function (ap) {
+          var o = document.createElement('option');
+          o.value = ap.ss;
+          o.textContent = apOptionText(ap);
+          sel.appendChild(o);
+        });
+        $('chip-wifi-found').textContent = String(aps.length);
+        btn.disabled = false;
+        btn.textContent = 'Rescan';
+        if (aps.length) { toastMsg('Wi-Fi scan refreshed.', true); }
+        else { toastMsg('No networks found.', false); }
+      });
+  });
+
+  $('wifi-select').addEventListener('change', function () {
+    var v = $('wifi-select').value;
+    // The placeholder's empty value is copied across too, clearing both fields.
+    $('wifi-ssid').value = v;
+    $('wifi-password').value = '';
+  });
+
+  // ======================= media actions =======================
+  function setWeatherGif(path) {
+    runSave(function () {
+      return doSet('gif=' + enc(path)).then(function (r) {
+        if (r.ok) {
+          state.weatherGif = path;
+          renderLibrary('weather');
+          toastMsg('Weather GIF selected.', true);
+        } else {
+          toastMsg('Set GIF failed: ' + r.msg, false);
+        }
+      });
+    });
+  }
+  function setAlbumImage(path) {
+    runSave(function () {
+      return doSet('album_path=' + enc(path) + '&album_autoplay=0').then(function (r) {
+        if (r.ok) {
+          state.albumAutoplay = false;
+          $('image-autoplay').checked = false;
+          state.albumPath = path;
+          renderLibrary('image');
+          renderChips();
+          toastMsg('Album image fixed. Auto display turned off.', true);
+        } else {
+          toastMsg('Set image failed: ' + r.msg, false);
+        }
+      });
+    });
+  }
+  function deleteFile(path) {
+    if (!window.confirm('Delete this file?')) { return; }
+    busyStart();
+    fetch('/delete?file=' + enc(path), { cache: 'no-store' })
+      .then(function () {
+        // response body is not checked; any completed response is success
+        var group = path.indexOf('/80x80.gif/') >= 0 ? 'weatherMedia' : 'imageMedia';
+        if (group === 'imageMedia' && state.albumPath === path) { state.albumPath = ''; }
+        return Promise.all([loadGroup(group, true), loadGroup('space', true)])
+          .catch(function () {})
+          .then(function () {
+            renderAll();
+            toastMsg('File deleted.', true);
+          });
+      })
+      .catch(function (e) {
+        toastMsg('Delete failed: ' + ((e && e.message) ? e.message : String(e)), false);
+      })
+      .then(function () { busyEnd(); });
+  }
+
+  $('weather-files-clear').addEventListener('click', function () {
+    if (!window.confirm('Delete all files in Weather GIF library?')) { return; }
+    runSave(function () {
+      return doSet('clear=gif').then(function (r) {
+        if (!r.ok) {
+          toastMsg('Clear failed: ' + r.msg, false);
+          return;
+        }
+        return Promise.all([loadGroup('weatherMedia', true), loadGroup('space', true)])
+          .catch(function () {})
+          .then(function () {
+            renderAll();
+            toastMsg('Weather GIF library cleared.', true);
+          });
+      });
+    });
+  });
+  $('image-files-clear').addEventListener('click', function () {
+    if (!window.confirm('Delete all files in Image library?')) { return; }
+    runSave(function () {
+      return doSet('clear=image').then(function (r) {
+        if (!r.ok) {
+          toastMsg('Clear failed: ' + r.msg, false);
+          return;
+        }
+        return Promise.all([loadGroup('imageMedia', true), loadGroup('space', true)])
+          .catch(function () {})
+          .then(function () {
+            renderAll();
+            toastMsg('Image library cleared.', true);
+          });
+      });
+    });
+  });
+
+  // ======================= uploads =======================
+  function isGifFile(f) {
+    return f.type === 'image/gif' || /\.gif$/i.test(f.name);
+  }
+  function gifDims(file) {
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var d = { w: img.naturalWidth, h: img.naturalHeight };
+        URL.revokeObjectURL(url);
+        resolve(d);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        resolve({ w: 0, h: 0 });
+      };
+      img.src = url;
+    });
+  }
+  function uploadOne(dir, file, onProgress) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/doUpload?dir=' + enc(dir), true);
+      xhr.upload.addEventListener('progress', function (e) {
+        if (e.lengthComputable) { onProgress(e.loaded); }
+      });
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== XMLHttpRequest.DONE) { return; }
+        var body = (xhr.responseText || '').trim();
+        if (xhr.status >= 200 && xhr.status < 300 && body === 'OK') { resolve(); }
+        else { reject(new Error(body || ('HTTP ' + xhr.status))); }
+      };
+      var fd = new FormData();
+      // exactly one part, field name "update"; & in the filename becomes _
+      fd.append('update', file, file.name.replace(/&/g, '_'));
+      xhr.send(fd);
+    });
+  }
+
+  function setOverlay(pct, meta) {
+    $('upload-pct').textContent = pct + '%';
+    $('upload-meter').style.width = pct + '%';
+    if (meta !== undefined) { $('upload-meta').textContent = meta; }
+  }
+
+  function handleUpload(kind, input) {
+    if (state.uploading) {
+      input.value = '';
+      return;
+    }
+    var files = Array.prototype.slice.call(input.files || []);
+    input.value = '';
+    if (!files.length) {
+      toastMsg('Choose at least one file first.', false);
+      return;
+    }
+    var isWeather = kind === 'weather';
+    var dir = isWeather ? '/image/80x80.gif' : '/image';
+    var needPx = isWeather ? 80 : 240;
+    state.uploading = true;
+    $('weather-upload').disabled = true;
+    $('image-upload').disabled = true;
+    $('upload-title').textContent = isWeather ? 'Uploading Weather GIFs' : 'Uploading Images';
+    setOverlay(0, 'Preparing files...');
+    $('upload-overlay').classList.add('show');
+    renderLibrary('weather');
+    renderLibrary('image');
+    busyStart();
+
+    var totalBytes = files.reduce(function (a, f) { return a + f.size; }, 0);
+
+    loadGroup('space', true)
+      .then(function () {
+        if (totalBytes > state.space.free) {
+          throw new Error('Selected files exceed remaining storage. Need ' +
+            fmtBytes(totalBytes) + ', free ' + fmtBytes(state.space.free) + '.');
+        }
+        // type / dimension validation, sequentially
+        var idx = 0;
+        function validateNext() {
+          if (idx >= files.length) { return Promise.resolve(); }
+          var f = files[idx++];
+          if (isWeather && !isGifFile(f)) {
+            return Promise.reject(new Error(f.name + ': weather uploads only accept GIF files.'));
+          }
+          if (isGifFile(f)) {
+            return gifDims(f).then(function (d) {
+              if (d.w !== needPx || d.h !== needPx) {
+                throw new Error(f.name + ': GIF must be exactly ' + needPx + 'x' + needPx +
+                  'px. Current file: ' + d.w + 'x' + d.h + 'px.');
+              }
+              return validateNext();
+            });
+          }
+          return validateNext();
+        }
+        return validateNext();
+      })
+      .then(function () {
+        // sequential uploads; first failure aborts the rest
+        var i = 0;
+        var sentBase = 0;
+        function next() {
+          if (i >= files.length) { return Promise.resolve(); }
+          var f = files[i];
+          return uploadOne(dir, f, function (loaded) {
+            var pct = totalBytes ? Math.min(100, Math.round((sentBase + loaded) / totalBytes * 100)) : 0;
+            setOverlay(pct, (i + 1) + '/' + files.length + ' · ' + f.name + ' · ' +
+              fmtBytes(loaded) + ' / ' + fmtBytes(f.size));
+          }).then(function () {
+            sentBase += f.size;
+            i++;
+            return next();
+          });
+        }
+        return next();
+      })
+      .then(function () {
+        setOverlay(100, 'Upload complete');
+        return Promise.all([
+          loadGroup(isWeather ? 'weatherMedia' : 'imageMedia', true),
+          loadGroup('space', true)
+        ]).catch(function () {}).then(function () {
+          renderAll();
+          toastMsg(isWeather ? 'Weather GIF upload complete.' : 'Image upload complete.', true);
+        });
+      })
+      .catch(function (e) {
+        toastMsg('Upload failed: ' + ((e && e.message) ? e.message : String(e)), false);
+      })
+      .then(function () {
+        state.uploading = false;
+        $('weather-upload').disabled = false;
+        $('image-upload').disabled = false;
+        $('upload-overlay').classList.remove('show');
+        renderLibrary('weather');
+        renderLibrary('image');
+        busyEnd();
+      });
+  }
+  $('weather-upload').addEventListener('change', function () { handleUpload('weather', this); });
+  $('image-upload').addEventListener('change', function () { handleUpload('image', this); });
+
+  // Save Market Style: two sequential /set writes, colours first, separators
+  // second; the second only fires if the first succeeded.
+  var STYLE_KEYS = [
+    ['up_fg', 'style-up-fg'], ['up_bg', 'style-up-bg'],
+    ['down_fg', 'style-down-fg'], ['down_bg', 'style-down-bg'],
+    ['coin_fg', 'style-coin-fg'], ['coin_bg', 'style-coin-bg'],
+    ['pct_up_fg', 'style-pct-up-fg'], ['pct_up_bg', 'style-pct-up-bg'],
+    ['pct_down_fg', 'style-pct-down-fg'], ['pct_down_bg', 'style-pct-down-bg']
+  ];
+  $('style-save').addEventListener('click', function () {
+    var colours = STYLE_KEYS.map(function (p) {
+      return p[0] + '=' + enc($(p[1]).value);
+    }).join('&');
+    var seps = 'dec_sep=' + enc($('fmt-decimal').value) +
+               '&thous_sep=' + enc($('fmt-thousand').value);
+    busyStart();
+    chain([colours, seps]).then(function (r) {
+      busyEnd();
+      if (r.ok) { toastMsg('Shared market styling saved.', true); }
+      else { toastMsg('Shared style save failed: ' + r.msg, false); }
+    });
+  });
+
+  // ======================= startup =======================
+  var initial = null;
+  var hashKey = location.hash.slice(1);
+  if (VIEWS.indexOf(hashKey) >= 0) { initial = hashKey; }
+  if (!initial) {
+    var stored = storageGet('gm_pro_active_tab');
+    if (VIEWS.indexOf(stored) >= 0) { initial = stored; }
+  }
+  if (!initial) { initial = 'btc'; }
+  renderAll();
+  var startup = showView(initial, true);
+  booting = false;
+  startup.then(function () {
+    toastMsg('Console ready.', true);
+  });
+})();
+</script>
+</body>
+</html>

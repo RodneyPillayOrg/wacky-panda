@@ -1,0 +1,90 @@
+# -----------------------------------------------------------------------------
+# SmolTV-Pro - source control scope
+#
+# Tracked: the firmware source and the tooling/docs needed to REPRODUCE it.
+#   src/  include/  lib/  platformio.ini  partitions.csv  README.md
+#   docs/  scripts/          (new, root-level - build/test/generative only)
+#
+# -----------------------------------------------------------------------------
+
+re/
+
+# -- Local-only notes and decision records ------------------------------------
+# Kept on disk, never committed.
+CONTEXT.md
+docs/adr/
+
+# -- Agent / editor local config ----------------------------------------------
+CLAUDE.md
+.claude/
+.mcp.json
+.vscode/
+.idea/
+
+# -- PlatformIO build output --------------------------------------------------
+.pio/
+.pioenvs/
+.piolibdeps/
+*.elf
+*.bin
+*.hex
+*.map
+
+# -- Python -------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# -- Node. Not needed to build or to regenerate assets; lv_font_conv is only used
+# -- by scripts/lv_font_gen_verify.py, to check our converter against it. --------
+node_modules/
+package-lock.json
+
+# -- Fetched upstream assets --------------------------------------------------
+# The asset pipeline downloads fonts and icon sets from upstream. Those are
+# third-party files with their own licences: cache them locally, never commit
+# them. Only the generated headers they produce are tracked.
+assets/cache/
+assets/fetched/
+# Intermediates the pipeline writes on its way to the generated headers: instanced fonts,
+# rasterised PNGs, per-face .c files, contact sheets. All reproducible from the cache, and
+# ~3 MB of them, so only the headers they produce are tracked.
+assets/build/
+scripts/captures/
+
+# The LittleFS image source, assembled by scripts/pack_fs.py from assets/build/ (generated)
+# and assets/cache/stock/ (captured from a stock unit). Every file in it is a copy of
+# something produced elsewhere, and it additionally holds vendor-authored web UI files that
+# should not enter this repository. Never edit data/ by hand -- change pack_fs.py's LAYOUT.
+data/
+
+# -- Generated, but DELIBERATELY TRACKED --------------------------------------
+# src/LvFontsGen.h and src/LvImagesGen.h are machine-generated yet committed on
+# purpose, so the firmware builds offline without running a network-dependent
+# fetch/convert pipeline. Do not add them here.
+
+# -- OS noise -----------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+*.swp
+*~
+
+# -- Stray logs / scratch -----------------------------------------------------
+*.log
+
+# Editor/backup leftovers
+*.bak
+*.orig
+*.rej
+
+# clangd compilation database. Machine-specific absolute paths, regenerated with
+# `pio run -t compiledb`, so it is never committed.
+compile_commands.json
