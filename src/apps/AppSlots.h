@@ -159,14 +159,14 @@ private:
 
     static const uint8_t STRIPS[NUM_REELS][STRIP_LEN];
 
-    // Cumulative Virtual Stop Weights for 95.94% RTP (Microgaming Wacky Panda 3-Coin PAR Sheet)
+    // Cumulative Virtual Stop Weights for 96.65% RTP & 34.34% Hit Rate (Wacky Panda Action PAR Sheet)
     static constexpr uint8_t CUM_WEIGHTS[NUM_REELS][STRIP_LEN] = {
-        // Reel 0: Total weight 100
-        { 18, 23, 34, 40, 45, 48, 50, 51, 69, 80, 85, 91, 96, 99, 100, 100 },
-        // Reel 1: Total weight 100
-        { 18, 22, 33, 38, 44, 48, 49, 51, 69, 79, 83, 88, 94, 98, 100, 100 },
-        // Reel 2: Total weight 100
-        {  9, 22, 29, 35, 40, 46, 52, 53, 65, 73, 79, 84, 89, 94, 100, 100 }
+        // Reel 0: Total weight 100 (G=51, B=15, W=8, BrP=6, BlP=4, PP=3, YP=3, RP=10)
+        { 26, 34, 38, 41, 43, 45, 47, 52, 77, 81, 88, 91, 93, 94, 95, 100 },
+        // Reel 1: Total weight 100 (G=51, B=15, W=8, BrP=6, BlP=4, PP=3, YP=3, RP=10)
+        {  8, 34, 37, 41, 43, 45, 50, 52, 59, 62, 87, 91, 93, 94, 95, 100 },
+        // Reel 2: Total weight 100 (G=54, B=17, W=9, BrP=7, BlP=5, PP=4, YP=3, RP=1)
+        {  5, 32, 41, 44, 48, 50, 52, 53, 80, 84, 92, 95, 97, 99, 100, 100 }
     };
 
     static int pickWeightedStop(int reelIdx) {
@@ -319,23 +319,23 @@ private:
         bool isPandaWin = false;
         bool isRedPandaPartial = false;
 
-        // Official Microgaming Wacky Panda 3-Coin Paytable
+        // High-Hit-Rate Wacky Panda 3-Coin Paytable (34.34% Hit Rate, 96.65% RTP)
         if (redCount == 3) {
-            payout = 3333;
+            payout = 1500;
             celebSym = SYM_RED_PANDA;
             isJackpot = true;
             isPandaWin = true;
-            snprintf(_winBuf, sizeof(_winBuf), "WACKY JACKPOT! +3333");
+            snprintf(_winBuf, sizeof(_winBuf), "WACKY JACKPOT! +1500");
         } else if (redCount == 2) {
-            payout = 45;
+            payout = 15;
             celebSym = SYM_RED_PANDA;
             isRedPandaPartial = true;
-            snprintf(_winBuf, sizeof(_winBuf), "2x RED PANDA! +45");
+            snprintf(_winBuf, sizeof(_winBuf), "2x RED PANDA! +15");
         } else if (redCount == 1) {
-            payout = 30;
+            payout = 6;
             celebSym = SYM_RED_PANDA;
             isRedPandaPartial = true;
-            snprintf(_winBuf, sizeof(_winBuf), "1x RED PANDA! +30");
+            snprintf(_winBuf, sizeof(_winBuf), "1x RED PANDA! +6");
         } else if (s0 == s1 && s1 == s2) {
             celebSym = s0;
             switch (s0) {
@@ -355,21 +355,21 @@ private:
                     snprintf(_winBuf, sizeof(_winBuf), "BLUE PANDAS! +180");
                     break;
                 case SYM_BROWN_PANDA:
-                    payout = 120;
+                    payout = 90;
                     isPandaWin = true;
-                    snprintf(_winBuf, sizeof(_winBuf), "BROWN PANDAS! +120");
+                    snprintf(_winBuf, sizeof(_winBuf), "BROWN PANDAS! +90");
                     break;
                 case SYM_WATERMELON:
-                    payout = 90;
-                    snprintf(_winBuf, sizeof(_winBuf), "WATERMELONS! +90");
+                    payout = 45;
+                    snprintf(_winBuf, sizeof(_winBuf), "WATERMELONS! +45");
                     break;
                 case SYM_BANANA:
-                    payout = 75;
-                    snprintf(_winBuf, sizeof(_winBuf), "BANANAS! +75");
+                    payout = 24;
+                    snprintf(_winBuf, sizeof(_winBuf), "BANANAS! +24");
                     break;
                 case SYM_GRAPES:
-                    payout = 60;
-                    snprintf(_winBuf, sizeof(_winBuf), "GRAPES! +60");
+                    payout = 9;
+                    snprintf(_winBuf, sizeof(_winBuf), "GRAPES! +9");
                     break;
                 default:
                     break;
@@ -388,6 +388,7 @@ private:
             _initConfetti(celebSym);
             Sound::playWin(isJackpot, isPandaWin, isRedPandaPartial);
         } else {
+            Sound::onSpinEnd();
             _gameState = GameState::IDLE;
         }
     }

@@ -4,14 +4,14 @@
 
 // Microgaming "Wacky Panda" 8-symbol set (ordered lowest to highest payout)
 enum SymbolType : uint8_t {
-  SYM_GRAPES       = 0,  // 3x = 20x bet (60 coins @ 3 coins)
-  SYM_BANANA       = 1,  // 3x = 25x bet (75 coins @ 3 coins)
-  SYM_WATERMELON   = 2,  // 3x = 30x bet (90 coins @ 3 coins)
-  SYM_BROWN_PANDA  = 3,  // 3x = 40x bet (120 coins @ 3 coins)
+  SYM_GRAPES       = 0,  // 3x = 3x bet (9 coins @ 3 coins)
+  SYM_BANANA       = 1,  // 3x = 8x bet (24 coins @ 3 coins)
+  SYM_WATERMELON   = 2,  // 3x = 15x bet (45 coins @ 3 coins)
+  SYM_BROWN_PANDA  = 3,  // 3x = 30x bet (90 coins @ 3 coins)
   SYM_BLUE_PANDA   = 4,  // 3x = 60x bet (180 coins @ 3 coins)
   SYM_PURPLE_PANDA = 5,  // 3x = 120x bet (360 coins @ 3 coins)
   SYM_YELLOW_PANDA = 6,  // 3x = 300x bet (900 coins @ 3 coins)
-  SYM_RED_PANDA    = 7,  // 1x = 10x, 2x = 15x, 3x = 1111x bet (3333 coins @ 3 coins)
+  SYM_RED_PANDA    = 7,  // 1x = 2x (6c), 2x = 5x (15c), 3x = 500x bet (1500 coins @ 3 coins)
   NUM_SYMBOLS      = 8
 };
 

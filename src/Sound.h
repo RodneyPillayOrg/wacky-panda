@@ -40,6 +40,7 @@ enum class SfxType : uint8_t {
   NONE = 0,
   INTRO_AMBIENT,
   SPIN_START,
+  SPIN_END,
   REEL_STOP,
   WIN_REDPANDA,
   WIN_SMALL,
@@ -51,7 +52,6 @@ class Sound {
 public:
   static void begin() {
 #if HAS_I2S_AUDIO
-    // Keep strapping pins GPIO 45 (VDD_SPI) and GPIO 46 (ROM boot) LOW by default
     pinMode(AUDIO_PA_PIN, OUTPUT);
     digitalWrite(AUDIO_PA_PIN, LOW);
 
@@ -79,15 +79,16 @@ public:
     if (i2s_channel_init_std_mode(_txHandle, &std_cfg) == ESP_OK) {
       i2s_channel_enable(_txHandle);
 
-      // 2. Initialize ES8311 Codec over I2C (SDA=15, SCL=14, 7-bit addr 0x18) while MCLK is active
+      // 2. Initialize ES8311 Codec over I2C (SDA=15, SCL=14, 7-bit addr 0x18)
       _initEs8311Codec();
+
+      // 3. Enable Speaker Power Amplifier (GPIO 46 HIGH) for continuous ambient + SFX mixer
+      digitalWrite(AUDIO_PA_PIN, HIGH);
 
       _ready = true;
       _sfxQueue = xQueueCreate(8, sizeof(SfxType));
       xTaskCreatePinnedToCore(_audioTask, "sfx", 4096, nullptr, 2, nullptr, 0);
-      play(SfxType::INTRO_AMBIENT);
-      Serial.printf("[sound] ES8311 + I2S ready @ %u Hz (MCLK=%d, BCLK=%d, WS=%d, DOUT=%d, PA=%d)\n",
-                    (unsigned)SAMPLE_RATE, I2S_SPK_MCLK, I2S_SPK_BCLK, I2S_SPK_LRCK, I2S_SPK_DOUT, AUDIO_PA_PIN);
+      Serial.printf("[sound] ES8311 + I2S 2-channel mixer ready @ %u Hz\n", (unsigned)SAMPLE_RATE);
     }
 #endif
   }
@@ -104,6 +105,7 @@ public:
 
   static void playIntro()     { play(SfxType::INTRO_AMBIENT); }
   static void playSpinStart() { play(SfxType::SPIN_START); }
+  static void onSpinEnd()     { play(SfxType::SPIN_END); }
   static void playReelStop()  { play(SfxType::REEL_STOP); }
 
   static void playWin(bool isJackpot, bool isPandaWin, bool isRedPandaPartial = false) {
@@ -134,7 +136,6 @@ private:
   static void _initEs8311Codec() {
     Wire.begin(AUDIO_I2C_SDA, AUDIO_I2C_SCL, 100000);
     delay(10);
-    // Standard Espressif ES8311 Slave I2S 16-bit DAC initialization sequence (256*Fs MCLK)
     _writeEs8311Reg(0x00, 0x1F); // Reset all
     delay(20);
     _writeEs8311Reg(0x00, 0x00);
@@ -159,71 +160,140 @@ private:
     _writeEs8311Reg(0x37, 0x08); // Unmute DAC
   }
 
-  // Stream authentic 16kHz 16-bit mono PCM clip from Flash (PROGMEM),
-  // immediately preempting if a newer SFX arrives in _sfxQueue.
-  static void _playPcm(const int16_t* pcm, size_t totalSamples) {
-    if (!_ready || !_txHandle || !pcm || totalSamples == 0) return;
-
-    // Enable PA (GPIO 46 HIGH) only during active playback
-    digitalWrite(AUDIO_PA_PIN, HIGH);
-
-    int16_t buf[256];
-    size_t pos = 0;
-    while (pos < totalSamples) {
-      if (uxQueueMessagesWaiting(_sfxQueue) > 0) {
-        return; // Preempt immediately for newer SFX (PA stays HIGH for next clip)
-      }
-      size_t chunk = totalSamples - pos;
-      if (chunk > 256) chunk = 256;
-      memcpy_P(buf, pcm + pos, chunk * sizeof(int16_t));
-      size_t written = 0;
-      i2s_channel_write(_txHandle, buf, chunk * sizeof(int16_t), &written, pdMS_TO_TICKS(50));
-      pos += chunk;
-    }
-
-    // Write 128 zero samples after clip completes to prevent DAC pop
-    memset(buf, 0, 128 * sizeof(int16_t));
-    size_t written = 0;
-    i2s_channel_write(_txHandle, buf, 128 * sizeof(int16_t), &written, pdMS_TO_TICKS(20));
-
-    // Return PA (GPIO 46 strapping pin) to LOW when idle
-    if (uxQueueMessagesWaiting(_sfxQueue) == 0) {
-      digitalWrite(AUDIO_PA_PIN, LOW);
+  static void _selectClip(SfxType sfx, const int16_t*& ptr, size_t& len) {
+    switch (sfx) {
+      case SfxType::SPIN_START:
+        ptr = SFX_PCM_SPIN;
+        len = SFX_PCM_SPIN_LEN;
+        break;
+      case SfxType::REEL_STOP:
+        ptr = SFX_PCM_STOP;
+        len = SFX_PCM_STOP_LEN;
+        break;
+      case SfxType::WIN_REDPANDA:
+        ptr = SFX_PCM_WIN_REDPANDA;
+        len = SFX_PCM_WIN_REDPANDA_LEN;
+        break;
+      case SfxType::WIN_SMALL:
+        ptr = SFX_PCM_WIN_SMALL;
+        len = SFX_PCM_WIN_SMALL_LEN;
+        break;
+      case SfxType::WIN_PANDA:
+      case SfxType::WIN_JACKPOT:
+        ptr = SFX_PCM_WIN_BIG;
+        len = SFX_PCM_WIN_BIG_LEN;
+        break;
+      default:
+        ptr = nullptr;
+        len = 0;
+        break;
     }
   }
 
+  // Real-time 2-channel audio mixer:
+  // - Channel 1: Continuous seamless Wacky Panda bamboo forest & guzheng ambient loop (SFX_PCM_INTRO)
+  // - Channel 2: Foreground SFX (Spin Gong + Reel Roll sustained across the entire spin, plus Win fanfares)
+  //   with smooth 25ms crossfades so no sound ever cuts off abruptly.
   static void _audioTask(void*) {
-    SfxType sfx;
+    size_t ambPos = 0;
+    float ambGain = 0.85f;
+
+    const int16_t* fgPtr = nullptr;
+    size_t fgLen = 0;
+    size_t fgPos = 0;
+    bool spinActive = false;
+
+    // Crossfade state for seamless foreground transitions (400 samples = 25ms)
+    static constexpr size_t XFADE_LEN = 400;
+    const int16_t* prevFgPtr = nullptr;
+    size_t prevFgLen = 0;
+    size_t prevFgPos = 0;
+    size_t xfadePos = XFADE_LEN;
+
+    // Loop points inside SFX_PCM_SPIN (45,600 samples = 2.85s) so if a spin ever runs longer,
+    // the spin gong + bamboo reel roll sustains until the 3rd reel locks, then plays its natural tail.
+    static constexpr size_t SPIN_SUSTAIN_START = 16000; // 1.00s
+    static constexpr size_t SPIN_SUSTAIN_END   = 36800; // 2.30s (leaves 0.55s natural lock + decay tail)
+
+    int16_t mixBuf[256];
+
     for (;;) {
-      if (xQueueReceive(_sfxQueue, &sfx, portMAX_DELAY) == pdTRUE) {
-        // Drain any older queued events so only the newest triggered SFX plays
-        while (uxQueueMessagesWaiting(_sfxQueue) > 0) {
-          xQueueReceive(_sfxQueue, &sfx, 0);
+      SfxType cmd;
+      while (xQueueReceive(_sfxQueue, &cmd, 0) == pdTRUE) {
+        if (cmd == SfxType::INTRO_AMBIENT) {
+          // Ambient is already playing continuously; no interruption needed
+          continue;
         }
-        switch (sfx) {
-          case SfxType::INTRO_AMBIENT:
-            _playPcm(SFX_PCM_INTRO, SFX_PCM_INTRO_LEN);
-            break;
-          case SfxType::SPIN_START:
-            _playPcm(SFX_PCM_SPIN, SFX_PCM_SPIN_LEN);
-            break;
-          case SfxType::REEL_STOP:
-            _playPcm(SFX_PCM_STOP, SFX_PCM_STOP_LEN);
-            break;
-          case SfxType::WIN_REDPANDA:
-            _playPcm(SFX_PCM_WIN_REDPANDA, SFX_PCM_WIN_REDPANDA_LEN);
-            break;
-          case SfxType::WIN_SMALL:
-            _playPcm(SFX_PCM_WIN_SMALL, SFX_PCM_WIN_SMALL_LEN);
-            break;
-          case SfxType::WIN_PANDA:
-          case SfxType::WIN_JACKPOT:
-            _playPcm(SFX_PCM_WIN_BIG, SFX_PCM_WIN_BIG_LEN);
-            break;
-          default:
-            break;
+        if (cmd == SfxType::SPIN_END) {
+          // 3rd reel locked on a non-winning spin: release sustain loop so SFX_PCM_SPIN
+          // finishes its natural resonant decay tail (36800..45600) without cutting off!
+          spinActive = false;
+          continue;
+        }
+
+        const int16_t* nextPtr = nullptr;
+        size_t nextLen = 0;
+        _selectClip(cmd, nextPtr, nextLen);
+        if (nextPtr && nextLen > 0) {
+          if (fgPtr && fgPos < fgLen) {
+            prevFgPtr = fgPtr;
+            prevFgLen = fgLen;
+            prevFgPos = fgPos;
+            xfadePos  = 0;
+          }
+          fgPtr = nextPtr;
+          fgLen = nextLen;
+          fgPos = 0;
+          spinActive = (cmd == SfxType::SPIN_START);
         }
       }
+
+      const float targetAmbGain = (fgPtr != nullptr) ? 0.38f : 0.88f;
+
+      for (size_t i = 0; i < 256; ++i) {
+        // 1. Continuous Ambient Sample
+        int16_t ambSample = (int16_t)pgm_read_word(&SFX_PCM_INTRO[ambPos]);
+        if (++ambPos >= SFX_PCM_INTRO_LEN) {
+          ambPos = 0;
+        }
+        ambGain += (targetAmbGain - ambGain) * 0.0015f;
+        float mixed = (float)ambSample * ambGain;
+
+        // 2. Foreground SFX Sample
+        float fgSample = 0.0f;
+        if (fgPtr) {
+          if (spinActive && fgPtr == SFX_PCM_SPIN && fgPos >= SPIN_SUSTAIN_END) {
+            // Sustain spin roll until 3rd reel locks
+            fgPos = SPIN_SUSTAIN_START;
+          }
+          if (fgPos < fgLen) {
+            fgSample = (float)((int16_t)pgm_read_word(&fgPtr[fgPos++]));
+          } else {
+            fgPtr = nullptr;
+            fgLen = 0;
+            fgPos = 0;
+            spinActive = false;
+          }
+        }
+
+        // 3. Smooth 25ms Crossfade from previous foreground sound if preempted
+        if (xfadePos < XFADE_LEN && prevFgPtr && prevFgPos < prevFgLen) {
+          float t = (float)xfadePos / (float)XFADE_LEN;
+          float prevSample = (float)((int16_t)pgm_read_word(&prevFgPtr[prevFgPos++]));
+          fgSample = prevSample * (1.0f - t) + fgSample * t;
+          ++xfadePos;
+        } else {
+          prevFgPtr = nullptr;
+        }
+
+        int32_t outVal = (int32_t)(mixed + fgSample);
+        if (outVal > 32767)  outVal = 32767;
+        if (outVal < -32768) outVal = -32768;
+        mixBuf[i] = (int16_t)outVal;
+      }
+
+      size_t written = 0;
+      i2s_channel_write(_txHandle, mixBuf, sizeof(mixBuf), &written, pdMS_TO_TICKS(50));
     }
   }
 #endif

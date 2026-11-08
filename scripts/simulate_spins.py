@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-1,000,000-Spin Monte Carlo Simulation for Wacky Panda (Microgaming).
+1,000,000-Spin Monte Carlo Simulation for Wacky Panda (High-Hit-Rate Action Edition).
 Uses the exact 16-stop physical strips and cumulative weight lookup tables
 compiled into src/apps/AppSlots.h.
 """
@@ -29,59 +29,59 @@ strip2 = [
 
 # 16 stop weights for each reel (sum = 100 each)
 weights0 = [
-    18, # 0: GRAPES
-     5, # 1: BANANA
-    11, # 2: WATERMELON
-     6, # 3: BROWN_PANDA
-     5, # 4: BLUE_PANDA
-     3, # 5: PURPLE_PANDA
+    26, # 0: GRAPES
+     8, # 1: BANANA
+     4, # 2: WATERMELON
+     3, # 3: BROWN_PANDA
+     2, # 4: BLUE_PANDA
+     2, # 5: PURPLE_PANDA
      2, # 6: YELLOW_PANDA
-     1, # 7: RED_PANDA
-    18, # 8: GRAPES
-    11, # 9: WATERMELON
-     5, # 10: BANANA
-     6, # 11: BROWN_PANDA
-     5, # 12: BLUE_PANDA
-     3, # 13: PURPLE_PANDA
+     5, # 7: RED_PANDA
+    25, # 8: GRAPES
+     4, # 9: WATERMELON
+     7, # 10: BANANA
+     3, # 11: BROWN_PANDA
+     2, # 12: BLUE_PANDA
+     1, # 13: PURPLE_PANDA
      1, # 14: YELLOW_PANDA
-     0  # 15: RED_PANDA (visual near-miss stop)
+     5  # 15: RED_PANDA
 ]
 
 weights1 = [
-    18, # 0: BANANA
-     4, # 1: GRAPES
-    11, # 2: BROWN_PANDA
-     5, # 3: WATERMELON
-     6, # 4: BLUE_PANDA
-     4, # 5: PURPLE_PANDA
-     1, # 6: RED_PANDA
+     8, # 0: BANANA
+    26, # 1: GRAPES
+     3, # 2: BROWN_PANDA
+     4, # 3: WATERMELON
+     2, # 4: BLUE_PANDA
+     2, # 5: PURPLE_PANDA
+     5, # 6: RED_PANDA
      2, # 7: YELLOW_PANDA
-    18, # 8: BANANA
-    10, # 9: BROWN_PANDA
-     4, # 10: GRAPES
-     5, # 11: WATERMELON
-     6, # 12: BLUE_PANDA
-     4, # 13: PURPLE_PANDA
-     2, # 14: YELLOW_PANDA
-     0  # 15: RED_PANDA (visual near-miss stop)
+     7, # 8: BANANA
+     3, # 9: BROWN_PANDA
+    25, # 10: GRAPES
+     4, # 11: WATERMELON
+     2, # 12: BLUE_PANDA
+     1, # 13: PURPLE_PANDA
+     1, # 14: YELLOW_PANDA
+     5  # 15: RED_PANDA
 ]
 
 weights2 = [
-     9, # 0: WATERMELON
-    13, # 1: GRAPES
-     7, # 2: BANANA
-     6, # 3: BLUE_PANDA
-     5, # 4: BROWN_PANDA
-     6, # 5: YELLOW_PANDA
-     6, # 6: PURPLE_PANDA
+     5, # 0: WATERMELON
+    27, # 1: GRAPES
+     9, # 2: BANANA
+     3, # 3: BLUE_PANDA
+     4, # 4: BROWN_PANDA
+     2, # 5: YELLOW_PANDA
+     2, # 6: PURPLE_PANDA
      1, # 7: RED_PANDA
-    12, # 8: GRAPES
-     8, # 9: WATERMELON
-     6, # 10: BANANA
-     5, # 11: BROWN_PANDA
-     5, # 12: BLUE_PANDA
-     5, # 13: PURPLE_PANDA
-     6, # 14: YELLOW_PANDA
+    27, # 8: GRAPES
+     4, # 9: WATERMELON
+     8, # 10: BANANA
+     3, # 11: BROWN_PANDA
+     2, # 12: BLUE_PANDA
+     2, # 13: PURPLE_PANDA
+     1, # 14: YELLOW_PANDA
      0  # 15: RED_PANDA (visual near-miss stop)
 ]
 
@@ -91,14 +91,14 @@ assert sum(weights2) == 100, f"sum(weights2)={sum(weights2)}"
 
 BET_COINS = 3
 PAYOUTS_3OAK = {
-    "RED_PANDA":    3333,
+    "RED_PANDA":    1500,
     "YELLOW_PANDA":  900,
     "PURPLE_PANDA":  360,
     "BLUE_PANDA":    180,
-    "BROWN_PANDA":   120,
-    "WATERMELON":     90,
-    "BANANA":         75,
-    "GRAPES":         60,
+    "BROWN_PANDA":    90,
+    "WATERMELON":     45,
+    "BANANA":         24,
+    "GRAPES":          9,
 }
 
 def make_cum(weights):
@@ -152,15 +152,15 @@ for _ in range(N):
 
     if red_count == 3:
         hits += 1
-        total_coins_won += 3333
+        total_coins_won += 1500
         hit_counts["3x RED_PANDA"] += 1
     elif red_count == 2:
         hits += 1
-        total_coins_won += 45
+        total_coins_won += 15
         hit_counts["2x RED_PANDA"] += 1
     elif red_count == 1:
         hits += 1
-        total_coins_won += 30
+        total_coins_won += 6
         hit_counts["1x RED_PANDA"] += 1
     elif s0 == s1 and s1 == s2:
         hits += 1
@@ -173,7 +173,7 @@ sim_rtp = (total_coins_won / total_wager) * 100.0
 sim_hf = (hits / N) * 100.0
 
 print(f"=== 1,000,000 SPIN WACKY PANDA MONTE CARLO SIMULATION ===")
-print(f"Simulated RTP:           {sim_rtp:.2f}% (Theoretical: 95.94%)")
+print(f"Simulated RTP:           {sim_rtp:.2f}% (Theoretical: 96.65%)")
 print(f"Simulated Hit Frequency: {sim_hf:.2f}% (1 in every {N/hits:.2f} spins)")
 print("\nHit Breakdown:")
 for label, count in hit_counts.items():
