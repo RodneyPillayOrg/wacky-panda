@@ -3,6 +3,7 @@
 #include "../Config.h"
 #include "../Display.h"
 #include "../Sound.h"
+#include "../Touch.h"
 #include "SlotsSymbols.h"
 #include <Arduino.h>
 #include <cmath>
@@ -125,20 +126,42 @@ public:
             }
         }
 
+        const bool fingerDown = Touch::isDown();
+
         if (_gameState == GameState::SPINNING ||
             _reels[0].state != ReelState::LOCKED ||
             _reels[1].state != ReelState::LOCKED ||
             _reels[2].state != ReelState::LOCKED) {
+            // If finger touches down while reels are spinning, trigger instant quick-stop!
+            if (fingerDown && !_wasFingerDown && (now - _spinStartMs > 180)) {
+                _quickStop();
+            }
             _updateReels(now);
+        } else {
+            // Reel Spin Breathe / Wind-Up:
+            // - While finger is pressing the screen, reels coil upward (-12 px spring wind-up)
+            //   so you see tactile anticipation while holding and an explosive launch on release!
+            // - While idle, reels gently breathe (+/- 1.5 px) so the machine feels alive.
+            for (int i = 0; i < NUM_REELS; ++i) {
+                if (fingerDown) {
+                    float holdSec = (float)Touch::heldMs() * 0.001f;
+                    float pull = std::min(1.0f, holdSec * 14.0f); // Coils up in ~70ms
+                    float tremor = 1.2f * sinf((float)now * 0.045f + (float)i * 1.1f);
+                    _reels[i].bounceOffset = -12.0f * pull + tremor;
+                } else {
+                    _reels[i].bounceOffset = 1.5f * sinf((float)now * 0.0045f + (float)i * 0.9f);
+                }
+            }
         }
+        _wasFingerDown = fingerDown;
 
         // 2. Pure Render pass across the 3 bands
         Display::renderApp([this, now](TFT_eSprite& spr) {
             _drawFrame(spr, now);
         }, COL_JUNGLE_BG);
 
-        // Fluid 45-50 FPS frame pacing
-        delay(8);
+        // Minimal 2ms yield for 250 Hz touch responsiveness and ~55 FPS rendering
+        delay(2);
         return true;
     }
 
@@ -149,6 +172,8 @@ private:
     char _winBuf[36] = "TAP TO SPIN (3 COINS)";
     GameState _gameState = GameState::IDLE;
     uint32_t _winAnimUntilMs = 0;
+    uint32_t _spinStartMs = 0;
+    bool _wasFingerDown = false;
     int _lastTapCounter = 0;
     uint32_t _lastFrameMs = 0;
 
@@ -199,17 +224,28 @@ private:
         Sound::playSpinStart();
 
         uint32_t now = millis();
+        _spinStartMs = now;
+        // Non-aliasing per-reel speeds (none divide CELL_H=56 evenly, preventing wagon-wheel freeze!)
+        static constexpr float REEL_SPEEDS[NUM_REELS] = { 23.0f, 25.0f, 27.0f };
         for (int i = 0; i < NUM_REELS; ++i) {
             _reels[i].targetIndex = pickWeightedStop(i);
             _reels[i].targetY = (float)(_reels[i].targetIndex * CELL_H);
             _reels[i].state = ReelState::SPINNING;
-            _reels[i].speed = SPEED_MAX;
+            _reels[i].speed = REEL_SPEEDS[i];
             _reels[i].bounceOffset = 0.0f;
             _reels[i].stopTriggerMs = 0;
+            // Instant downward launch step on release frame so visual motion is immediate!
+            _reels[i].y += REEL_SPEEDS[i];
+            if (_reels[i].y >= TOTAL_STRIP_H) _reels[i].y -= TOTAL_STRIP_H;
         }
 
-        // Reel 0 stops first after 600ms of fast spinning
-        _reels[0].stopTriggerMs = now + 600;
+        // Reel 0 stops first after 550ms of fast spinning
+        _reels[0].stopTriggerMs = now + 550;
+
+        // Render first moving frame immediately on press release!
+        Display::renderApp([this, now](TFT_eSprite& spr) {
+            _drawFrame(spr, now);
+        }, COL_JUNGLE_BG);
     }
 
     void _triggerReelStop(int reelIdx, uint32_t now) {
@@ -614,7 +650,10 @@ private:
         // Dark Jungle Casino HUD bar (y = 207..240)
         spr.fillRect(0, 207, 240, 33, COL_HUD_BG);
 
-        if (_gameState == GameState::SPINNING) {
+        if (Touch::isDown() && _gameState != GameState::SPINNING) {
+            spr.setTextColor(COL_GOLD_TEXT, COL_HUD_BG);
+            spr.drawCentreString("RELEASE TO SPIN!", 120, 215, 2);
+        } else if (_gameState == GameState::SPINNING) {
             spr.setTextColor(COL_LIME_TEXT, COL_HUD_BG);
             spr.drawCentreString("SPINNING...", 120, 215, 2);
         } else if (_gameState == GameState::WIN_ANIMATION) {

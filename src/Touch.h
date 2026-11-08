@@ -81,6 +81,8 @@ public:
 
     static uint16_t threshold() { return _threshold; }
     static uint16_t raw() { return _lastRaw; }
+    static bool isDown() { return _wasDown && !_longFired; }
+    static unsigned long heldMs() { return _wasDown ? (millis() - _pressStart) : 0; }
     static void setImmediateSingleTap(bool en) { _immediateSingleTap = en; }
 
     static TouchEvent poll() {
@@ -92,20 +94,16 @@ public:
 #endif
         bool scrDown = _lastScrDown;
 #if HAS_CST816_TOUCH
-        if (_cst816Present && (now - _lastI2cPollMs >= 5)) {
+        if (_cst816Present && (now - _lastI2cPollMs >= 4)) {
             _lastI2cPollMs = now;
-            // Fast check: if INT pin is LOW, finger is definitely down; also verify via 0x02
-            if (digitalRead(TP_INT_PIN) == LOW) {
-                scrDown = true;
+            // ALWAYS read register 0x02 over I2C to clear CST816D's INT latch and get live finger count!
+            Wire1.beginTransmission(0x15);
+            Wire1.write(0x02); // Finger num register
+            if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)1) == 1) {
+                uint8_t fingers = Wire1.read() & 0x0F;
+                scrDown = (fingers > 0);
             } else {
-                Wire1.beginTransmission(0x15);
-                Wire1.write(0x02); // Finger num register
-                if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)1) == 1) {
-                    uint8_t fingers = Wire1.read() & 0x0F;
-                    scrDown = (fingers > 0);
-                } else {
-                    scrDown = false;
-                }
+                scrDown = false;
             }
             _lastScrDown = scrDown;
         }
@@ -129,8 +127,10 @@ public:
             _longFired  = false;
             _pressStart = now;
         } else if (touched && _wasDown) {
-            // Fire Long press IMMEDIATELY while held down (no need to wait for finger release!)
-            if (!_longFired && (now - _pressStart) >= 380) {
+            // In launcher: 380ms long-press enters app quickly.
+            // In game (_immediateSingleTap): 650ms long-press exits to launcher so firm taps never exit accidentally.
+            const unsigned long longMinMs = _immediateSingleTap ? 650UL : 380UL;
+            if (!_longFired && (now - _pressStart) >= longMinMs) {
                 _longFired = true;
                 _taps = 0;
                 return TouchEvent::Long;
@@ -143,7 +143,7 @@ public:
             }
             unsigned long held = now - _pressStart;
 #if HAS_CST816_TOUCH
-            constexpr unsigned long minDebounceMs = 5;
+            constexpr unsigned long minDebounceMs = 4;
 #else
             constexpr unsigned long minDebounceMs = TOUCH_PRESS_DEBOUNCE_MS;
 #endif
