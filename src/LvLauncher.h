@@ -20,7 +20,7 @@ static constexpr int32_t SLIDE_X = 184;
 // lv_anim_speed_to_time, which computes |start - end| * 1000 / speed. So the actual
 // duration is 184 * 1000 / 400 = 460 ms. Mis-reading this literal as a time is exactly how
 // "400 ms" got into the old implementation.
-static constexpr uint32_t SLIDE_SPEED = 400;
+static constexpr uint32_t SLIDE_SPEED = 750;
 
 // Direction codes as AppCtrl_runLoop passes them: 5 reverses the two SLIDE_X literals,
 // 6 (or anything else) is forward, i.e. the new icon enters from the RIGHT.

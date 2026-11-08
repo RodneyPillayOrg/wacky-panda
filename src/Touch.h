@@ -90,28 +90,20 @@ public:
 #endif
         bool scrDown = _lastScrDown;
 #if HAS_CST816_TOUCH
-        if (_cst816Present && (now - _lastI2cPollMs >= 5)) {
+        if (_cst816Present && (now - _lastI2cPollMs >= 10)) {
             _lastI2cPollMs = now;
-            // Fast check: CST816D asserts TP_INT_PIN LOW while a finger is touching.
-            // Only do I2C read when TP_INT_PIN is LOW or while tracking an active touch (_lastScrDown).
-            if (digitalRead(TP_INT_PIN) == LOW || _lastScrDown) {
-                Wire1.beginTransmission(0x15);
-                Wire1.write(0x01);
-                if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)6) == 6) {
-                    uint8_t buf[6];
-                    for (int i = 0; i < 6; ++i) buf[i] = Wire1.read();
-                    uint8_t fingers   = buf[1] & 0x0F;
-                    uint8_t eventFlag = (buf[2] >> 6) & 0x03; // 1 = Touch UP
-                    scrDown = (fingers == 1) && (eventFlag != 0x01);
-                } else {
-                    scrDown = false;
-                }
-                if (scrDown != _lastScrDown) {
-                    Serial.printf("[touch-diag] t=%lu int=%d scrDown=%d->%d\n",
-                                  now, digitalRead(TP_INT_PIN), (int)_lastScrDown, (int)scrDown);
-                }
-                _lastScrDown = scrDown;
+            Wire1.beginTransmission(0x15);
+            Wire1.write(0x01);
+            if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)6) == 6) {
+                uint8_t buf[6];
+                for (int i = 0; i < 6; ++i) buf[i] = Wire1.read();
+                uint8_t fingers   = buf[1] & 0x0F;
+                uint8_t eventFlag = (buf[2] >> 6) & 0x03; // 1 = Touch UP
+                scrDown = (fingers == 1) && (eventFlag != 0x01);
+            } else {
+                scrDown = false;
             }
+            _lastScrDown = scrDown;
         }
 #endif
         bool touched = btnDown || scrDown;
@@ -133,7 +125,7 @@ public:
             _longFired  = false;
             _pressStart = now;
         } else if (touched && _wasDown) {
-            const unsigned long longMinMs = _immediateSingleTap ? 600UL : 400UL;
+            const unsigned long longMinMs = _immediateSingleTap ? 550UL : 360UL;
             if (!_longFired && (now - _pressStart) >= longMinMs) {
                 _longFired = true;
                 _taps = 0;
@@ -153,16 +145,10 @@ public:
 #endif
             if (held < minDebounceMs) return TouchEvent::None;
 
-            // Inside Wacky Panda (_immediateSingleTap == true), fire Short tap IMMEDIATELY
-            // on finger release (skipping the 220ms double-click wait) so the tap triggers
-            // the Reel Spin Breathe -> Spin cleanly with zero post-tap lag!
-            if (_immediateSingleTap) {
-                _taps = 0;
-                return TouchEvent::Short;
-            }
-
-            _taps++;
-            _lastTap = now;
+            // Fire Short tap IMMEDIATELY on finger release in both the 2-app Launcher
+            // and inside Wacky Panda so menu scrolling and reel spinning have zero post-tap delay!
+            _taps = 0;
+            return TouchEvent::Short;
         }
 
         if (!touched && _taps > 0 && (now - _lastTap) > TOUCH_CLICK_WINDOW_MS) {
