@@ -41,6 +41,7 @@ public:
 
     enum class ReelState {
         IDLE,
+        BREATHING,
         SPINNING,
         STOPPING,
         SETTLING,
@@ -126,34 +127,17 @@ public:
             }
         }
 
-        const bool fingerDown = Touch::isDown();
-
         if (_gameState == GameState::SPINNING ||
             _reels[0].state != ReelState::LOCKED ||
             _reels[1].state != ReelState::LOCKED ||
             _reels[2].state != ReelState::LOCKED) {
-            // If finger touches down while reels are spinning, trigger instant quick-stop!
-            if (fingerDown && !_wasFingerDown && (now - _spinStartMs > 180)) {
-                _quickStop();
-            }
             _updateReels(now);
         } else {
-            // Reel Spin Breathe / Wind-Up:
-            // - While finger is pressing the screen, reels coil upward (-12 px spring wind-up)
-            //   so you see tactile anticipation while holding and an explosive launch on release!
-            // - While idle, reels gently breathe (+/- 1.5 px) so the machine feels alive.
+            // Subtle idle living breathe (+/- 1.5 px)
             for (int i = 0; i < NUM_REELS; ++i) {
-                if (fingerDown) {
-                    float holdSec = (float)Touch::heldMs() * 0.001f;
-                    float pull = std::min(1.0f, holdSec * 14.0f); // Coils up in ~70ms
-                    float tremor = 1.2f * sinf((float)now * 0.045f + (float)i * 1.1f);
-                    _reels[i].bounceOffset = -12.0f * pull + tremor;
-                } else {
-                    _reels[i].bounceOffset = 1.5f * sinf((float)now * 0.0045f + (float)i * 0.9f);
-                }
+                _reels[i].bounceOffset = 1.5f * sinf((float)now * 0.0045f + (float)i * 0.9f);
             }
         }
-        _wasFingerDown = fingerDown;
 
         // 2. Pure Render pass across the 3 bands
         Display::renderApp([this, now](TFT_eSprite& spr) {
@@ -173,7 +157,6 @@ private:
     GameState _gameState = GameState::IDLE;
     uint32_t _winAnimUntilMs = 0;
     uint32_t _spinStartMs = 0;
-    bool _wasFingerDown = false;
     int _lastTapCounter = 0;
     uint32_t _lastFrameMs = 0;
 
@@ -230,19 +213,18 @@ private:
         for (int i = 0; i < NUM_REELS; ++i) {
             _reels[i].targetIndex = pickWeightedStop(i);
             _reels[i].targetY = (float)(_reels[i].targetIndex * CELL_H);
-            _reels[i].state = ReelState::SPINNING;
+            // Start with a snappy 85ms upward "Reel Spin Breathe" wind-up before launching down!
+            _reels[i].state = ReelState::BREATHING;
+            _reels[i].bounceStartMs = now + (uint32_t)(i * 15);
             _reels[i].speed = REEL_SPEEDS[i];
-            _reels[i].bounceOffset = 0.0f;
+            _reels[i].bounceOffset = -6.0f; // Immediate visual movement on frame 0!
             _reels[i].stopTriggerMs = 0;
-            // Instant downward launch step on release frame so visual motion is immediate!
-            _reels[i].y += REEL_SPEEDS[i];
-            if (_reels[i].y >= TOTAL_STRIP_H) _reels[i].y -= TOTAL_STRIP_H;
         }
 
-        // Reel 0 stops first after 550ms of fast spinning
-        _reels[0].stopTriggerMs = now + 550;
+        // Reel 0 stops first after 640ms (85ms breathe + 555ms fast spin)
+        _reels[0].stopTriggerMs = now + 640;
 
-        // Render first moving frame immediately on press release!
+        // Render first moving frame immediately!
         Display::renderApp([this, now](TFT_eSprite& spr) {
             _drawFrame(spr, now);
         }, COL_JUNGLE_BG);
@@ -270,9 +252,17 @@ private:
     void _quickStop() {
         uint32_t now = millis();
         for (int i = 0; i < NUM_REELS; ++i) {
+            if (_reels[i].state == ReelState::BREATHING) {
+                _reels[i].state = ReelState::SPINNING;
+                _reels[i].bounceOffset = 0.0f;
+            }
             if (_reels[i].state == ReelState::SPINNING) {
                 _triggerReelStop(i, now);
                 for (int j = i + 1; j < NUM_REELS; ++j) {
+                    if (_reels[j].state == ReelState::BREATHING) {
+                        _reels[j].state = ReelState::SPINNING;
+                        _reels[j].bounceOffset = 0.0f;
+                    }
                     if (_reels[j].state == ReelState::SPINNING) {
                         _reels[j].stopTriggerMs = now + (uint32_t)(100 * (j - i));
                     }
@@ -289,7 +279,24 @@ private:
                 continue;
             }
 
-            if (r.state == ReelState::SPINNING) {
+            if (r.state == ReelState::BREATHING) {
+                // 85ms upward spring wind-up ("reel spin breathe") before launching downward!
+                constexpr uint32_t BREATHE_DUR = 85;
+                if (now < r.bounceStartMs) {
+                    r.bounceOffset = -4.0f;
+                } else {
+                    uint32_t elapsed = now - r.bounceStartMs;
+                    if (elapsed < BREATHE_DUR) {
+                        float t = (float)elapsed / (float)BREATHE_DUR;
+                        r.bounceOffset = -13.0f * sinf(t * 2.4f);
+                    } else {
+                        r.bounceOffset = 0.0f;
+                        r.state = ReelState::SPINNING;
+                        r.y += r.speed;
+                        if (r.y >= TOTAL_STRIP_H) r.y -= TOTAL_STRIP_H;
+                    }
+                }
+            } else if (r.state == ReelState::SPINNING) {
                 r.y += r.speed;
                 if (r.y >= TOTAL_STRIP_H) r.y -= TOTAL_STRIP_H;
 
@@ -650,10 +657,7 @@ private:
         // Dark Jungle Casino HUD bar (y = 207..240)
         spr.fillRect(0, 207, 240, 33, COL_HUD_BG);
 
-        if (Touch::isDown() && _gameState != GameState::SPINNING) {
-            spr.setTextColor(COL_GOLD_TEXT, COL_HUD_BG);
-            spr.drawCentreString("RELEASE TO SPIN!", 120, 215, 2);
-        } else if (_gameState == GameState::SPINNING) {
+        if (_gameState == GameState::SPINNING) {
             spr.setTextColor(COL_LIME_TEXT, COL_HUD_BG);
             spr.drawCentreString("SPINNING...", 120, 215, 2);
         } else if (_gameState == GameState::WIN_ANIMATION) {
