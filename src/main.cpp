@@ -441,7 +441,9 @@ void setup() {
         // EMPTY-SSID SHORT-CIRCUIT: show the prompt and go straight to SoftAP. WiFi.begin()
         // is never called, so the SDK cannot auto-connect from a stale NVS record.
         // Note the prompt ends with '!', not an ellipsis.
+#ifndef BOARD_SPOTPEAR_MUMA_S3
         displayStatusFor("Please connect WiFi " AP_SSID "!", 1000);
+#endif
         apMode = true;
     } else {
         // Try connecting, refreshing "Try <ssid>" every 600 ms.
@@ -491,8 +493,10 @@ void setup() {
         Serial.printf("[heap] AP pre-sprite: free=%u max=%u\n", ESP.getFreeHeap(), ESP.getMaxAllocHeap());
 
         // s_Start_AP_mode____3f4441c9 / s_http___192_168_4_1_3f4441da
+#ifndef BOARD_SPOTPEAR_MUMA_S3
         displayStatusFor("Start AP mode...", 2000);
         displayStatusFor(AP_URL, 5000);
+#endif
 
         apMode = true;
 
@@ -599,7 +603,9 @@ void setup() {
 
     // 10. "Don't Touch Top" warning before touch is initialised
     //     s_Don_t_Touch_Top__3f444211
+#ifndef BOARD_SPOTPEAR_MUMA_S3
     displayStatusFor("Don't Touch Top", 1000);
+#endif
 
     // 11. Touch & Audio init
     BLK8("pre-touch");

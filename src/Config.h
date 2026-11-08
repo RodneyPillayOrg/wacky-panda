@@ -10,7 +10,11 @@
 //   SCLK=18, MOSI=23, DC=2, RST=4, CS=N/C (tied to GND on PCB)
 //   Backlight: GPIO25, inverted PWM (LOW = bright)
 // Source: esphome yaml (authoritative); giovi321 pins are for NM-TV-154 (different board).
+#ifdef TFT_BL
+#define PIN_TFT_BL    TFT_BL
+#else
 #define PIN_TFT_BL    25
+#endif
 #define BL_PWM_CHAN   0
 #define BL_PWM_FREQ   5000
 #define BL_PWM_RES    8
@@ -98,9 +102,13 @@
 #define PATH_STK        "/.sys/stk.json"    // Stock kline interval
 #define PATH_CG_CHART   "/.sys/cg_chart_"  // prefix; append the coin id (range is in the header)
 
-// Backlight duty when brt.json is absent or unreadable. RAW and ACTIVE-LOW: higher is
-// dimmer. Display.h's _dayBright starts from this too, so the default has one definition.
-#define BRT_DEFAULT 180
+// Backlight duty when brt.json is absent or unreadable.
+// Spotpear MUMA S3 uses active-HIGH PWM (230 = 90% brightness); SmallTV Pro is active-LOW.
+#ifdef BOARD_SPOTPEAR_MUMA_S3
+#define BRT_DEFAULT 230
+#else
+#define BRT_DEFAULT 195
+#endif
 
 // How long the device must run before a boot counts as HEALTHY and the boot-loop markers
 // (OTA_FLAG_R1/R2) are cleared. See the guard in main.cpp step 8 and the reset in

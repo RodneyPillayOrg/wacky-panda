@@ -29,6 +29,10 @@ public:
     static void begin() {
 #if USE_DIGITAL_BUTTON
         pinMode(PIN_BUTTON, INPUT_PULLUP);
+#ifdef BOARD_SPOTPEAR_MUMA_S3
+        pinMode(40, INPUT_PULLUP); // Side button K1 (Volume+)
+        pinMode(41, INPUT_PULLUP); // Side button K2 (Volume-)
+#endif
         _threshold = 0;
         Serial.printf("[touch] digital button configured on GPIO %d (active LOW)\n", PIN_BUTTON);
 #if HAS_CST816_TOUCH
@@ -60,7 +64,11 @@ public:
         Serial.printf("[touch] baseline=%u threshold=%u (pin %d)\n",
                       baseline, _threshold, PIN_TOUCH);
 #endif
+#if USE_DIGITAL_BUTTON
+        _guardUntil = millis() + 100;
+#else
         _guardUntil = millis() + TOUCH_BOOT_GUARD_MS;
+#endif
     }
 
     static uint16_t threshold() { return _threshold; }
@@ -69,6 +77,9 @@ public:
     static TouchEvent poll() {
 #if USE_DIGITAL_BUTTON
         bool btnDown = (digitalRead(PIN_BUTTON) == LOW);
+#ifdef BOARD_SPOTPEAR_MUMA_S3
+        btnDown = btnDown || (digitalRead(40) == LOW) || (digitalRead(41) == LOW);
+#endif
         bool scrDown = false;
 #if HAS_CST816_TOUCH
         if (_cst816Present) {

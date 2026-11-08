@@ -85,6 +85,7 @@ public:
       _ready = true;
       _sfxQueue = xQueueCreate(8, sizeof(SfxType));
       xTaskCreatePinnedToCore(_audioTask, "sfx", 4096, nullptr, 2, nullptr, 0);
+      play(SfxType::SPIN_START);
       Serial.printf("[sound] ES8311 + I2S ready (MCLK=%d, BCLK=%d, WS=%d, DOUT=%d, PA=%d)\n",
                     I2S_SPK_MCLK, I2S_SPK_BCLK, I2S_SPK_LRCK, I2S_SPK_DOUT, AUDIO_PA_PIN);
     }
