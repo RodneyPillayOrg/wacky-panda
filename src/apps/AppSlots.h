@@ -93,6 +93,8 @@ public:
 
         _lastTapCounter = 0;
         _lastFrameMs = millis();
+        _idleDrawn = false;
+        _diagFrameCount = 0;
         Sound::enterGame();
 
         // Render initial frame immediately so menu -> game transition is instant
@@ -132,17 +134,40 @@ public:
             _reels[1].state != ReelState::LOCKED ||
             _reels[2].state != ReelState::LOCKED) {
             _updateReels(now);
+            _idleDrawn = false;
         } else {
             // Subtle idle living breathe (+/- 1.5 px)
             for (int i = 0; i < NUM_REELS; ++i) {
-                _reels[i].bounceOffset = 1.5f * sinf((float)now * 0.0045f + (float)i * 0.9f);
+                _reels[i].bounceOffset = 0.0f;
+            }
+            if (_gameState == GameState::IDLE && _idleDrawn) {
+                delay(2);
+                return true;
+            }
+            if (_gameState == GameState::IDLE) {
+                _idleDrawn = true;
             }
         }
 
         // 2. Pure Render pass across the 3 bands
+        uint32_t tRender0 = millis();
         Display::renderApp([this, now](TFT_eSprite& spr) {
             _drawFrame(spr, now);
         }, COL_JUNGLE_BG);
+        uint32_t renderMs = millis() - tRender0;
+
+        if (_gameState == GameState::SPINNING && (_diagFrameCount < 12 || (_diagFrameCount % 15 == 0))) {
+            Serial.printf("[spin-diag] f=%u dt=%u render=%ums r0=%d(y=%.1f,b=%.1f) r1=%d(y=%.1f,b=%.1f) r2=%d(y=%.1f,b=%.1f)\n",
+                          (unsigned)_diagFrameCount,
+                          (unsigned)(now - _spinStartMs),
+                          (unsigned)renderMs,
+                          (int)_reels[0].state, _reels[0].y, _reels[0].bounceOffset,
+                          (int)_reels[1].state, _reels[1].y, _reels[1].bounceOffset,
+                          (int)_reels[2].state, _reels[2].y, _reels[2].bounceOffset);
+        }
+        if (_gameState == GameState::SPINNING) {
+            _diagFrameCount++;
+        }
 
         // Minimal 2ms yield for 250 Hz touch responsiveness and ~55 FPS rendering
         delay(2);
@@ -159,6 +184,8 @@ private:
     uint32_t _spinStartMs = 0;
     int _lastTapCounter = 0;
     uint32_t _lastFrameMs = 0;
+    bool _idleDrawn = false;
+    uint32_t _diagFrameCount = 0;
 
     struct Confetti {
         float x;
@@ -208,21 +235,28 @@ private:
 
         uint32_t now = millis();
         _spinStartMs = now;
+        _diagFrameCount = 0;
+        _idleDrawn = false;
+        Serial.printf("[spin-diag] START_SPIN at t=%u credits=%d\n", (unsigned)now, _credits);
         // Non-aliasing per-reel speeds (none divide CELL_H=56 evenly, preventing wagon-wheel freeze!)
         static constexpr float REEL_SPEEDS[NUM_REELS] = { 23.0f, 25.0f, 27.0f };
         for (int i = 0; i < NUM_REELS; ++i) {
+            // Preserve the current stopped symbol position as the starting y!
+            // (Overwriting targetIndex BEFORE reading it caused the reel strip to teleport
+            // to the final target symbol during the breathe instead of breathing from the current symbol!)
+            _reels[i].y = (float)(_reels[i].targetIndex * CELL_H);
             _reels[i].targetIndex = pickWeightedStop(i);
             _reels[i].targetY = (float)(_reels[i].targetIndex * CELL_H);
             // Start with an authentic easeInBack "Reel Spin Breathe" wind-up (upward pullback)
-            // staggered by 25ms per reel before snapping downward into high-speed spin!
+            // staggered by 20ms per reel before snapping downward into high-speed spin!
             _reels[i].state = ReelState::BREATHING;
-            _reels[i].bounceStartMs = now + (uint32_t)(i * 25);
+            _reels[i].bounceStartMs = now + (uint32_t)(i * 20);
             _reels[i].speed = REEL_SPEEDS[i];
-            _reels[i].bounceOffset = (i == 0) ? -4.0f : 0.0f;
+            _reels[i].bounceOffset = (i == 0) ? -6.0f : -2.0f;
             _reels[i].stopTriggerMs = 0;
         }
 
-        // Reel 0 stops first after 720ms (165ms breathe + 555ms fast spin)
+        // Reel 0 stops first after 720ms (150ms breathe + 570ms fast spin)
         _reels[0].stopTriggerMs = now + 720;
 
         // Render first moving frame immediately!
@@ -237,17 +271,13 @@ private:
         if (r.state != ReelState::SPINNING) return;
 
         r.state = ReelState::STOPPING;
-        float currentY = r.y;
         float targetY = (float)(r.targetIndex * CELL_H);
-        float dist = targetY - currentY;
-        while (dist < 0.0f) dist += TOTAL_STRIP_H;
-
-        if (dist < 3.5f * CELL_H) {
-            dist += TOTAL_STRIP_H;
-        }
-
-        r.stopStartDistance = dist;
-        r.stopRemainingDist = dist;
+        constexpr float BRAKE_DIST = 4.0f * CELL_H; // Crisp 4-cell (224 px) deceleration distance
+        float startY = targetY - BRAKE_DIST;
+        while (startY < 0.0f) startY += TOTAL_STRIP_H;
+        r.y = startY;
+        r.stopStartDistance = BRAKE_DIST;
+        r.stopRemainingDist = BRAKE_DIST;
     }
 
     void _quickStop() {
@@ -519,6 +549,9 @@ private:
     }
 
     void _drawReel(TFT_eSprite& spr, int reelIdx, uint32_t now) {
+        if (Display::bandBottom() <= REEL_TOP_Y || Display::bandTop() >= REEL_TOP_Y + REEL_H) {
+            return;
+        }
         const int rx = REEL_X[reelIdx];
         const Reel& r = _reels[reelIdx];
 
@@ -540,14 +573,26 @@ private:
         spr.drawFastHLine(rx, PAYLINE_Y, REEL_W, lineCol);
         spr.drawFastHLine(rx, PAYLINE_Y + 1, REEL_W, lineCol);
 
+        const int bTop = Display::bandTop();
+        const int bBtm = Display::bandBottom();
+        auto inBand = [bTop, bBtm](int cy) -> bool {
+            return (cy + 24 >= bTop) && (cy - 24 <= bBtm);
+        };
+
         if (r.state == ReelState::LOCKED) {
             int topIdx = (r.targetIndex + 1) % STRIP_LEN;
-            SlotsSymbols::drawSymbol(spr, STRIPS[reelIdx][topIdx], rx + REEL_W / 2, REEL_TOP_Y + 28);
+            if (inBand(REEL_TOP_Y + 28)) {
+                SlotsSymbols::drawSymbol(spr, STRIPS[reelIdx][topIdx], rx + REEL_W / 2, REEL_TOP_Y + 28);
+            }
 
-            SlotsSymbols::drawSymbol(spr, STRIPS[reelIdx][r.targetIndex], rx + REEL_W / 2, REEL_TOP_Y + 84);
+            if (inBand(REEL_TOP_Y + 84)) {
+                SlotsSymbols::drawSymbol(spr, STRIPS[reelIdx][r.targetIndex], rx + REEL_W / 2, REEL_TOP_Y + 84);
+            }
 
             int btmIdx = (r.targetIndex - 1 + STRIP_LEN) % STRIP_LEN;
-            SlotsSymbols::drawSymbol(spr, STRIPS[reelIdx][btmIdx], rx + REEL_W / 2, REEL_TOP_Y + 140);
+            if (inBand(REEL_TOP_Y + 140)) {
+                SlotsSymbols::drawSymbol(spr, STRIPS[reelIdx][btmIdx], rx + REEL_W / 2, REEL_TOP_Y + 140);
+            }
         } else {
             float currentY = r.y;
             while (currentY < 0.0f) currentY += TOTAL_STRIP_H;
@@ -564,7 +609,7 @@ private:
                 uint8_t sym = STRIPS[reelIdx][stripIdx];
 
                 int absY = REEL_TOP_Y + symCy;
-                if (absY >= REEL_TOP_Y - CELL_H / 2 && absY <= REEL_TOP_Y + REEL_H + CELL_H / 2) {
+                if (absY >= REEL_TOP_Y - CELL_H / 2 && absY <= REEL_TOP_Y + REEL_H + CELL_H / 2 && inBand(absY)) {
                     SlotsSymbols::drawSymbol(spr, sym, rx + REEL_W / 2, absY);
                 }
             }
@@ -618,6 +663,7 @@ private:
     }
 
     void _drawHeader(TFT_eSprite& spr) {
+        if (Display::bandTop() >= 34) return;
         // Wooden marquee board at top (y = 0..28)
         spr.fillRect(0, 0, 240, 29, COL_WOOD_DARK);
         spr.fillRect(8, 3, 224, 24, COL_WOOD_MID);
@@ -655,6 +701,7 @@ private:
     }
 
     void _drawFooter(TFT_eSprite& spr, uint32_t now) {
+        if (Display::bandBottom() <= 201) return;
         // Horizontal Bamboo Crossbeam at bottom of reels (y = 202..207)
         spr.fillRect(0, 202, 240, 5, COL_BAMBOO_MID);
         spr.drawFastHLine(0, 202, 240, COL_BAMBOO_DARK);

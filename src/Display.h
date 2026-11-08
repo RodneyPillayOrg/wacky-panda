@@ -261,6 +261,7 @@ public:
             // neither photos nor its own "No images" screen, and Idea drew nothing at all,
             // while every LVGL app looked perfect because flushCb had already been moved.
             tft.pushImage(0, y0, TFT_WIDTH, h, _bandPtr);
+            yield();
         }
         tft.endWrite();
         tft.setSwapBytes(prevSwap);   // leave the global flag as LVGL expects it

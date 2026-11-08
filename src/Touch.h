@@ -92,20 +92,26 @@ public:
 #if HAS_CST816_TOUCH
         if (_cst816Present && (now - _lastI2cPollMs >= 5)) {
             _lastI2cPollMs = now;
-            // Read full 6-byte CST816D touch packet (0x01..0x06) so touch state is consumed cleanly
-            // and check both FingerNum (buf[1]) and EventFlag (buf[2] >> 6: 0=Down, 1=Up, 2=Contact).
-            Wire1.beginTransmission(0x15);
-            Wire1.write(0x01);
-            if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)6) == 6) {
-                uint8_t buf[6];
-                for (int i = 0; i < 6; ++i) buf[i] = Wire1.read();
-                uint8_t fingers   = buf[1] & 0x0F;
-                uint8_t eventFlag = (buf[2] >> 6) & 0x03; // 1 = Touch UP
-                scrDown = (fingers == 1) && (eventFlag != 0x01);
-            } else {
-                scrDown = false;
+            // Fast check: CST816D asserts TP_INT_PIN LOW while a finger is touching.
+            // Only do I2C read when TP_INT_PIN is LOW or while tracking an active touch (_lastScrDown).
+            if (digitalRead(TP_INT_PIN) == LOW || _lastScrDown) {
+                Wire1.beginTransmission(0x15);
+                Wire1.write(0x01);
+                if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)6) == 6) {
+                    uint8_t buf[6];
+                    for (int i = 0; i < 6; ++i) buf[i] = Wire1.read();
+                    uint8_t fingers   = buf[1] & 0x0F;
+                    uint8_t eventFlag = (buf[2] >> 6) & 0x03; // 1 = Touch UP
+                    scrDown = (fingers == 1) && (eventFlag != 0x01);
+                } else {
+                    scrDown = false;
+                }
+                if (scrDown != _lastScrDown) {
+                    Serial.printf("[touch-diag] t=%lu int=%d scrDown=%d->%d\n",
+                                  now, digitalRead(TP_INT_PIN), (int)_lastScrDown, (int)scrDown);
+                }
+                _lastScrDown = scrDown;
             }
-            _lastScrDown = scrDown;
         }
 #endif
         bool touched = btnDown || scrDown;

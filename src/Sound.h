@@ -218,9 +218,10 @@ private:
     size_t prevFgPos = 0;
     size_t xfadePos = XFADE_LEN;
 
-    // Loop points inside SFX_PCM_SPIN (57,600 samples = 3.60s)
-    static constexpr size_t SPIN_SUSTAIN_START = 12000; // 0.75s (after initial gong strike)
-    static constexpr size_t SPIN_SUSTAIN_END   = 50000; // 3.12s
+    // Loop points inside SFX_PCM_SPIN (45,600 samples = 2.85s) so the Spin Gong + upbeat
+    // bamboo/guzheng spin groove sustains until the 3rd reel locks, then plays its natural tail.
+    static constexpr size_t SPIN_SUSTAIN_START = 16000; // 1.00s (after initial Spin Gong strike)
+    static constexpr size_t SPIN_SUSTAIN_END   = 36800; // 2.30s (leaves 0.55s natural lock + decay tail)
 
     int16_t mixBuf[256];
 
@@ -231,7 +232,7 @@ private:
           if (!inGame) {
             inGame = true;
             ambPos = 0;
-            ambGainQ8 = 46;
+            ambGainQ8 = 72;
             digitalWrite(AUDIO_PA_PIN, HIGH);
           }
           continue;
@@ -256,17 +257,23 @@ private:
           continue;
         }
         if (cmd == SfxType::REEL_STOP) {
-          // Trigger prominent Reel-Stop impact on Voice 3 without interrupting the spin melody!
+          // Trigger prominent bamboo Reel-Stop clack on Voice 3 without interrupting the spin melody!
           stopActive = true;
           stopPos = 0;
           continue;
         }
         if (cmd == SfxType::SPIN_END) {
-          // 3rd reel locked on a non-winning spin: begin smooth 250ms release decay
+          // 3rd reel locked on a non-winning spin: release sustain loop and smoothly transition
+          // into the natural resonant decay tail (36800..45600) of SFX_PCM_SPIN!
           if (fgPtr == SFX_PCM_SPIN) {
             spinActive = false;
-            spinFadeOut = true;
-            spinFadePos = 0;
+            if (fgPos < SPIN_SUSTAIN_END) {
+              prevFgPtr = fgPtr;
+              prevFgLen = fgLen;
+              prevFgPos = fgPos;
+              xfadePos  = 0;
+              fgPos     = SPIN_SUSTAIN_END;
+            }
           }
           continue;
         }
@@ -295,8 +302,8 @@ private:
         continue;
       }
 
-      // Subtle background ambient: 46/256 (~18%) when idle, 20/256 (~8%) when spinning/winning
-      ambGainQ8 = (fgPtr != nullptr) ? 20 : 46;
+      // Subtle background ambient: 72/256 (~28%) when idle, 32/256 (~12.5%) when spinning/winning
+      ambGainQ8 = (fgPtr != nullptr) ? 32 : 72;
 
       for (size_t i = 0; i < 256; ++i) {
         // 1. Subtle Idle Bamboo Forest Ambient Sample (Q8 integer math)
@@ -313,10 +320,9 @@ private:
             fgPos = SPIN_SUSTAIN_START;
           }
           if (fgPos < fgLen) {
-            // Slightly duck spin melody (192/256 = 75%) while a reel-stop impact is punching through
             int32_t rawFg = (int16_t)pgm_read_word(&fgPtr[fgPos++]);
             if (fgPtr == SFX_PCM_SPIN && stopActive) {
-              rawFg = (rawFg * 180) >> 8;
+              rawFg = (rawFg * 215) >> 8;
             }
             if (spinFadeOut) {
               if (spinFadePos < SPIN_FADEOUT_LEN) {
@@ -352,12 +358,11 @@ private:
           prevFgPtr = nullptr;
         }
 
-        // 4. Prominent Reel-Stop Impact Voice (115% boost = 294/256)
+        // 4. Prominent Bamboo Reel-Stop Impact Voice (100% of normalized 26000-peak clip)
         int32_t stopSample = 0;
         if (stopActive) {
           if (stopPos < SFX_PCM_STOP_LEN) {
-            int32_t rawStop = (int16_t)pgm_read_word(&SFX_PCM_STOP[stopPos++]);
-            stopSample = (rawStop * 294) >> 8;
+            stopSample = (int16_t)pgm_read_word(&SFX_PCM_STOP[stopPos++]);
           } else {
             stopActive = false;
             stopPos = 0;
