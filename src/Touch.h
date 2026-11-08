@@ -126,14 +126,8 @@ public:
             _wasDown    = true;
             _longFired  = false;
             _pressStart = now;
-            // Inside Wacky Panda (_immediateSingleTap == true), fire Short tap IMMEDIATELY
-            // on touch-down so the Reel Spin Breathe + Spin starts with zero delay!
-            if (_immediateSingleTap) {
-                _taps = 0;
-                return TouchEvent::Short;
-            }
         } else if (touched && _wasDown) {
-            const unsigned long longMinMs = _immediateSingleTap ? 750UL : 400UL;
+            const unsigned long longMinMs = _immediateSingleTap ? 600UL : 400UL;
             if (!_longFired && (now - _pressStart) >= longMinMs) {
                 _longFired = true;
                 _taps = 0;
@@ -141,7 +135,7 @@ public:
             }
         } else if (!touched && _wasDown) {
             _wasDown = false;
-            if (_longFired || _immediateSingleTap) {
+            if (_longFired) {
                 _longFired = false;
                 return TouchEvent::None;
             }
@@ -152,6 +146,14 @@ public:
             constexpr unsigned long minDebounceMs = TOUCH_PRESS_DEBOUNCE_MS;
 #endif
             if (held < minDebounceMs) return TouchEvent::None;
+
+            // Inside Wacky Panda (_immediateSingleTap == true), fire Short tap IMMEDIATELY
+            // on finger release (skipping the 220ms double-click wait) so the tap triggers
+            // the Reel Spin Breathe -> Spin cleanly with zero post-tap lag!
+            if (_immediateSingleTap) {
+                _taps = 0;
+                return TouchEvent::Short;
+            }
 
             _taps++;
             _lastTap = now;

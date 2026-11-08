@@ -213,16 +213,17 @@ private:
         for (int i = 0; i < NUM_REELS; ++i) {
             _reels[i].targetIndex = pickWeightedStop(i);
             _reels[i].targetY = (float)(_reels[i].targetIndex * CELL_H);
-            // Start with a snappy 85ms upward "Reel Spin Breathe" wind-up before launching down!
+            // Start with an authentic easeInBack "Reel Spin Breathe" wind-up (upward pullback)
+            // staggered by 25ms per reel before snapping downward into high-speed spin!
             _reels[i].state = ReelState::BREATHING;
-            _reels[i].bounceStartMs = now + (uint32_t)(i * 15);
+            _reels[i].bounceStartMs = now + (uint32_t)(i * 25);
             _reels[i].speed = REEL_SPEEDS[i];
-            _reels[i].bounceOffset = -6.0f; // Immediate visual movement on frame 0!
+            _reels[i].bounceOffset = (i == 0) ? -4.0f : 0.0f;
             _reels[i].stopTriggerMs = 0;
         }
 
-        // Reel 0 stops first after 640ms (85ms breathe + 555ms fast spin)
-        _reels[0].stopTriggerMs = now + 640;
+        // Reel 0 stops first after 720ms (165ms breathe + 555ms fast spin)
+        _reels[0].stopTriggerMs = now + 720;
 
         // Render first moving frame immediately!
         Display::renderApp([this, now](TFT_eSprite& spr) {
@@ -280,15 +281,25 @@ private:
             }
 
             if (r.state == ReelState::BREATHING) {
-                // 85ms upward spring wind-up ("reel spin breathe") before launching downward!
-                constexpr uint32_t BREATHE_DUR = 85;
+                // 165ms upward anticipation wind-up ("Reel Spin Breathe" / easeInBack curve):
+                // Reels pull smoothly UPWARD against the spin direction (peaking at -18 px = ~32% of a symbol cell),
+                // hover briefly at apex tension, and snap downward into full-speed spin.
+                constexpr uint32_t BREATHE_DUR = 165;
                 if (now < r.bounceStartMs) {
-                    r.bounceOffset = -4.0f;
+                    r.bounceOffset = 0.0f;
                 } else {
                     uint32_t elapsed = now - r.bounceStartMs;
                     if (elapsed < BREATHE_DUR) {
-                        float t = (float)elapsed / (float)BREATHE_DUR;
-                        r.bounceOffset = -13.0f * sinf(t * 2.4f);
+                        float t = (float)elapsed / (float)BREATHE_DUR; // 0.0 -> 1.0
+                        if (t < 0.72f) {
+                            // Smooth sine ease-out upward pullback to -18.0 px apex
+                            float u = t / 0.72f;
+                            r.bounceOffset = -18.0f * sinf(u * 1.5707963f);
+                        } else {
+                            // Elastic snap from -18.0 px apex through 0 into downward launch
+                            float u = (t - 0.72f) / 0.28f;
+                            r.bounceOffset = -18.0f * (1.0f - u * u);
+                        }
                     } else {
                         r.bounceOffset = 0.0f;
                         r.state = ReelState::SPINNING;
