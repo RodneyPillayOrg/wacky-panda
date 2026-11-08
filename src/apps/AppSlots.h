@@ -91,10 +91,12 @@ public:
 
         _lastTapCounter = 0;
         _lastFrameMs = millis();
-        Sound::playIntro();
+        Sound::enterGame();
     }
 
-    void onExit() override {}
+    void onExit() override {
+        Sound::exitGame();
+    }
 
     void onTapCounter(int counter) override {
         (void)counter;
@@ -225,7 +227,6 @@ private:
 
     void _quickStop() {
         uint32_t now = millis();
-        Sound::playReelStop();
         for (int i = 0; i < NUM_REELS; ++i) {
             if (_reels[i].state == ReelState::SPINNING) {
                 _triggerReelStop(i, now);

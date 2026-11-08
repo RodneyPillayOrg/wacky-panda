@@ -38,7 +38,8 @@
 
 enum class SfxType : uint8_t {
   NONE = 0,
-  INTRO_AMBIENT,
+  ENTER_GAME,
+  EXIT_GAME,
   SPIN_START,
   SPIN_END,
   REEL_STOP,
@@ -53,7 +54,7 @@ public:
   static void begin() {
 #if HAS_I2S_AUDIO
     pinMode(AUDIO_PA_PIN, OUTPUT);
-    digitalWrite(AUDIO_PA_PIN, LOW);
+    digitalWrite(AUDIO_PA_PIN, LOW); // Keep speaker amp OFF in Launcher menu & Settings!
 
     // 1. Initialize I2S Master Channel (16,000 Hz, with MCLK on GPIO 16 for ES8311)
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
@@ -82,9 +83,6 @@ public:
       // 2. Initialize ES8311 Codec over I2C (SDA=15, SCL=14, 7-bit addr 0x18)
       _initEs8311Codec();
 
-      // 3. Enable Speaker Power Amplifier (GPIO 46 HIGH) for continuous ambient + SFX mixer
-      digitalWrite(AUDIO_PA_PIN, HIGH);
-
       _ready = true;
       _sfxQueue = xQueueCreate(8, sizeof(SfxType));
       xTaskCreatePinnedToCore(_audioTask, "sfx", 4096, nullptr, 2, nullptr, 0);
@@ -103,7 +101,9 @@ public:
 #endif
   }
 
-  static void playIntro()     { play(SfxType::INTRO_AMBIENT); }
+  static void enterGame()     { play(SfxType::ENTER_GAME); }
+  static void exitGame()      { play(SfxType::EXIT_GAME); }
+  static void playIntro()     { play(SfxType::ENTER_GAME); }
   static void playSpinStart() { play(SfxType::SPIN_START); }
   static void onSpinEnd()     { play(SfxType::SPIN_END); }
   static void playReelStop()  { play(SfxType::REEL_STOP); }
@@ -190,18 +190,22 @@ private:
     }
   }
 
-  // Real-time 2-channel audio mixer:
-  // - Channel 1: Continuous seamless Wacky Panda bamboo forest & guzheng ambient loop (SFX_PCM_INTRO)
-  // - Channel 2: Foreground SFX (Spin Gong + Reel Roll sustained across the entire spin, plus Win fanfares)
-  //   with smooth 25ms crossfades so no sound ever cuts off abruptly.
+  // Real-time 2-channel audio mixer (active ONLY inside Wacky Panda game, silent in menu/settings):
+  // - Channel 1: Soft seamless Wacky Panda bamboo forest idle ambient loop (SFX_PCM_INTRO)
+  // - Channel 2: Foreground SFX (Spin Gong + Reel Roll sustained across the spin, plus Win fanfares)
+  //   with smooth crossfades and 300ms spin-end cosine release so no sound ever cuts off abruptly.
   static void _audioTask(void*) {
+    bool inGame = false;
     size_t ambPos = 0;
-    float ambGain = 0.85f;
+    float ambGain = 0.50f;
 
     const int16_t* fgPtr = nullptr;
     size_t fgLen = 0;
     size_t fgPos = 0;
     bool spinActive = false;
+    bool spinFadeOut = false;
+    size_t spinFadePos = 0;
+    static constexpr size_t SPIN_FADEOUT_LEN = 4800; // 300ms natural decay when 3rd reel locks
 
     // Crossfade state for seamless foreground transitions (400 samples = 25ms)
     static constexpr size_t XFADE_LEN = 400;
@@ -210,24 +214,49 @@ private:
     size_t prevFgPos = 0;
     size_t xfadePos = XFADE_LEN;
 
-    // Loop points inside SFX_PCM_SPIN (45,600 samples = 2.85s) so if a spin ever runs longer,
-    // the spin gong + bamboo reel roll sustains until the 3rd reel locks, then plays its natural tail.
-    static constexpr size_t SPIN_SUSTAIN_START = 16000; // 1.00s
-    static constexpr size_t SPIN_SUSTAIN_END   = 36800; // 2.30s (leaves 0.55s natural lock + decay tail)
+    // Loop points inside SFX_PCM_SPIN (57,600 samples = 3.60s)
+    static constexpr size_t SPIN_SUSTAIN_START = 12000; // 0.75s (after initial gong strike)
+    static constexpr size_t SPIN_SUSTAIN_END   = 50000; // 3.12s
 
     int16_t mixBuf[256];
 
     for (;;) {
       SfxType cmd;
       while (xQueueReceive(_sfxQueue, &cmd, 0) == pdTRUE) {
-        if (cmd == SfxType::INTRO_AMBIENT) {
-          // Ambient is already playing continuously; no interruption needed
+        if (cmd == SfxType::ENTER_GAME) {
+          if (!inGame) {
+            inGame = true;
+            ambPos = 0;
+            ambGain = 0.10f; // Fade in ambient smoothly
+            digitalWrite(AUDIO_PA_PIN, HIGH);
+          }
+          continue;
+        }
+        if (cmd == SfxType::EXIT_GAME) {
+          inGame = false;
+          fgPtr = nullptr;
+          fgLen = 0;
+          fgPos = 0;
+          prevFgPtr = nullptr;
+          spinActive = false;
+          spinFadeOut = false;
+          digitalWrite(AUDIO_PA_PIN, LOW);
+          memset(mixBuf, 0, sizeof(mixBuf));
+          size_t written = 0;
+          i2s_channel_write(_txHandle, mixBuf, sizeof(mixBuf), &written, pdMS_TO_TICKS(20));
+          continue;
+        }
+        if (!inGame) {
           continue;
         }
         if (cmd == SfxType::SPIN_END) {
-          // 3rd reel locked on a non-winning spin: release sustain loop so SFX_PCM_SPIN
-          // finishes its natural resonant decay tail (36800..45600) without cutting off!
-          spinActive = false;
+          // 3rd reel locked on a non-winning spin: begin smooth 300ms cosine release decay
+          // so the spin gong/melody lasts the exact spin duration and decays naturally!
+          if (fgPtr == SFX_PCM_SPIN) {
+            spinActive = false;
+            spinFadeOut = true;
+            spinFadePos = 0;
+          }
           continue;
         }
 
@@ -244,14 +273,21 @@ private:
           fgPtr = nextPtr;
           fgLen = nextLen;
           fgPos = 0;
-          spinActive = (cmd == SfxType::SPIN_START);
+          spinActive  = (cmd == SfxType::SPIN_START);
+          spinFadeOut = false;
+          spinFadePos = 0;
         }
       }
 
-      const float targetAmbGain = (fgPtr != nullptr) ? 0.38f : 0.88f;
+      if (!inGame) {
+        vTaskDelay(pdMS_TO_TICKS(15));
+        continue;
+      }
+
+      const float targetAmbGain = (fgPtr != nullptr) ? 0.22f : 0.50f;
 
       for (size_t i = 0; i < 256; ++i) {
-        // 1. Continuous Ambient Sample
+        // 1. Gentle Idle Bamboo Forest Ambient Sample
         int16_t ambSample = (int16_t)pgm_read_word(&SFX_PCM_INTRO[ambPos]);
         if (++ambPos >= SFX_PCM_INTRO_LEN) {
           ambPos = 0;
@@ -263,16 +299,30 @@ private:
         float fgSample = 0.0f;
         if (fgPtr) {
           if (spinActive && fgPtr == SFX_PCM_SPIN && fgPos >= SPIN_SUSTAIN_END) {
-            // Sustain spin roll until 3rd reel locks
+            // Sustain spin roll if spin ever runs longer than 3.12s
             fgPos = SPIN_SUSTAIN_START;
           }
           if (fgPos < fgLen) {
             fgSample = (float)((int16_t)pgm_read_word(&fgPtr[fgPos++]));
+            if (spinFadeOut) {
+              if (spinFadePos < SPIN_FADEOUT_LEN) {
+                float env = 0.5f * (1.0f + cosf(3.14159265f * (float)spinFadePos / (float)SPIN_FADEOUT_LEN));
+                fgSample *= env;
+                ++spinFadePos;
+              } else {
+                fgSample = 0.0f;
+                fgPtr = nullptr;
+                fgLen = 0;
+                fgPos = 0;
+                spinFadeOut = false;
+              }
+            }
           } else {
             fgPtr = nullptr;
             fgLen = 0;
             fgPos = 0;
             spinActive = false;
+            spinFadeOut = false;
           }
         }
 
