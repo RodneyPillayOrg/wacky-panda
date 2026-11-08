@@ -91,6 +91,7 @@ public:
 
         _lastTapCounter = 0;
         _lastFrameMs = millis();
+        Sound::playIntro();
     }
 
     void onExit() override {}
@@ -224,6 +225,7 @@ private:
 
     void _quickStop() {
         uint32_t now = millis();
+        Sound::playReelStop();
         for (int i = 0; i < NUM_REELS; ++i) {
             if (_reels[i].state == ReelState::SPINNING) {
                 _triggerReelStop(i, now);
@@ -251,7 +253,6 @@ private:
                 int curCell = (int)(r.y / CELL_H);
                 if (curCell != r.lastTickCell) {
                     r.lastTickCell = curCell;
-                    if (i == 2) Sound::playReelTick();
                 }
 
                 if (r.stopTriggerMs > 0 && now >= r.stopTriggerMs) {
@@ -267,8 +268,6 @@ private:
                     r.state = ReelState::SETTLING;
                     r.bounceStartMs = now;
                     r.bounceOffset = 0.0f;
-                    bool isRedPanda = (STRIPS[i][r.targetIndex] == SYM_RED_PANDA);
-                    Sound::playReelStop(i, isRedPanda);
                 } else {
                     r.y += step;
                     if (r.y >= TOTAL_STRIP_H) r.y -= TOTAL_STRIP_H;
@@ -318,6 +317,7 @@ private:
         uint8_t celebSym = SYM_RED_PANDA;
         bool isJackpot = false;
         bool isPandaWin = false;
+        bool isRedPandaPartial = false;
 
         // Official Microgaming Wacky Panda 3-Coin Paytable
         if (redCount == 3) {
@@ -329,11 +329,12 @@ private:
         } else if (redCount == 2) {
             payout = 45;
             celebSym = SYM_RED_PANDA;
-            isPandaWin = true;
+            isRedPandaPartial = true;
             snprintf(_winBuf, sizeof(_winBuf), "2x RED PANDA! +45");
         } else if (redCount == 1) {
             payout = 30;
             celebSym = SYM_RED_PANDA;
+            isRedPandaPartial = true;
             snprintf(_winBuf, sizeof(_winBuf), "1x RED PANDA! +30");
         } else if (s0 == s1 && s1 == s2) {
             celebSym = s0;
@@ -385,7 +386,7 @@ private:
             _gameState = GameState::WIN_ANIMATION;
             _winAnimUntilMs = millis() + 3500;
             _initConfetti(celebSym);
-            Sound::playWin(isJackpot, isPandaWin);
+            Sound::playWin(isJackpot, isPandaWin, isRedPandaPartial);
         } else {
             _gameState = GameState::IDLE;
         }

@@ -9,6 +9,8 @@
 #if HAS_I2S_AUDIO
 #include <Wire.h>
 #include <driver/i2s_std.h>
+#include <driver/gpio.h>
+#include "WackyPandaAudio.h"
 
 // Spotpear ESP32-S3 1.54" MUMA (sp-esp32-s3-1.54-muma) ES8311 + I2S pins
 #ifndef I2S_SPK_MCLK
@@ -36,12 +38,10 @@
 
 enum class SfxType : uint8_t {
   NONE = 0,
+  INTRO_AMBIENT,
   SPIN_START,
-  REEL_TICK,
-  REEL_STOP_0,
-  REEL_STOP_1,
-  REEL_STOP_2,
-  RED_PANDA_DING,
+  REEL_STOP,
+  WIN_REDPANDA,
   WIN_SMALL,
   WIN_PANDA,
   WIN_JACKPOT
@@ -51,7 +51,11 @@ class Sound {
 public:
   static void begin() {
 #if HAS_I2S_AUDIO
-    // 1. Initialize I2S Master Channel (with MCLK on GPIO 16 for ES8311)
+    // Keep strapping pins GPIO 45 (VDD_SPI) and GPIO 46 (ROM boot) LOW by default
+    pinMode(AUDIO_PA_PIN, OUTPUT);
+    digitalWrite(AUDIO_PA_PIN, LOW);
+
+    // 1. Initialize I2S Master Channel (16,000 Hz, with MCLK on GPIO 16 for ES8311)
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     chan_cfg.auto_clear = true;
     if (i2s_new_channel(&chan_cfg, &_txHandle, nullptr) != ESP_OK) {
@@ -75,19 +79,15 @@ public:
     if (i2s_channel_init_std_mode(_txHandle, &std_cfg) == ESP_OK) {
       i2s_channel_enable(_txHandle);
 
-      // 2. Initialize ES8311 Codec over I2C (SDA=15, SCL=14, 7-bit addr 0x18)
+      // 2. Initialize ES8311 Codec over I2C (SDA=15, SCL=14, 7-bit addr 0x18) while MCLK is active
       _initEs8311Codec();
-
-      // 3. Enable Speaker Power Amplifier (GPIO 46 HIGH)
-      pinMode(AUDIO_PA_PIN, OUTPUT);
-      digitalWrite(AUDIO_PA_PIN, HIGH);
 
       _ready = true;
       _sfxQueue = xQueueCreate(8, sizeof(SfxType));
       xTaskCreatePinnedToCore(_audioTask, "sfx", 4096, nullptr, 2, nullptr, 0);
-      play(SfxType::SPIN_START);
-      Serial.printf("[sound] ES8311 + I2S ready (MCLK=%d, BCLK=%d, WS=%d, DOUT=%d, PA=%d)\n",
-                    I2S_SPK_MCLK, I2S_SPK_BCLK, I2S_SPK_LRCK, I2S_SPK_DOUT, AUDIO_PA_PIN);
+      play(SfxType::INTRO_AMBIENT);
+      Serial.printf("[sound] ES8311 + I2S ready @ %u Hz (MCLK=%d, BCLK=%d, WS=%d, DOUT=%d, PA=%d)\n",
+                    (unsigned)SAMPLE_RATE, I2S_SPK_MCLK, I2S_SPK_BCLK, I2S_SPK_LRCK, I2S_SPK_DOUT, AUDIO_PA_PIN);
     }
 #endif
   }
@@ -102,26 +102,15 @@ public:
 #endif
   }
 
+  static void playIntro()     { play(SfxType::INTRO_AMBIENT); }
   static void playSpinStart() { play(SfxType::SPIN_START); }
-  static void playReelTick()  { play(SfxType::REEL_TICK); }
+  static void playReelStop()  { play(SfxType::REEL_STOP); }
 
-  static void playReelStop(int reelIdx, bool hasRedPanda) {
-    if (hasRedPanda) {
-      play(SfxType::RED_PANDA_DING);
-    } else if (reelIdx == 0) {
-      play(SfxType::REEL_STOP_0);
-    } else if (reelIdx == 1) {
-      play(SfxType::REEL_STOP_1);
-    } else {
-      play(SfxType::REEL_STOP_2);
-    }
-  }
-
-  static void playWin(bool isJackpot, bool isPandaWin) {
-    if (isJackpot) {
+  static void playWin(bool isJackpot, bool isPandaWin, bool isRedPandaPartial = false) {
+    if (isJackpot || isPandaWin) {
       play(SfxType::WIN_JACKPOT);
-    } else if (isPandaWin) {
-      play(SfxType::WIN_PANDA);
+    } else if (isRedPandaPartial) {
+      play(SfxType::WIN_REDPANDA);
     } else {
       play(SfxType::WIN_SMALL);
     }
@@ -129,7 +118,7 @@ public:
 
 private:
 #if HAS_I2S_AUDIO
-  static constexpr uint32_t SAMPLE_RATE = 24000;
+  static constexpr uint32_t SAMPLE_RATE = WACKY_AUDIO_SAMPLE_RATE;
   static constexpr uint8_t ES8311_ADDR  = 0x18;
   static inline i2s_chan_handle_t _txHandle = nullptr;
   static inline QueueHandle_t _sfxQueue = nullptr;
@@ -165,103 +154,72 @@ private:
     _writeEs8311Reg(0x12, 0x00); // Power up DAC
     _writeEs8311Reg(0x13, 0x10); // Enable HP/Speaker output drive
     _writeEs8311Reg(0x1C, 0x6A);
-    _writeEs8311Reg(0x32, 0xBF); // DAC volume ~80% (0xBF)
+    _writeEs8311Reg(0x31, 0x00); // Unmute DAC state machine
+    _writeEs8311Reg(0x32, 0xBF); // DAC 0dB digital volume
     _writeEs8311Reg(0x37, 0x08); // Unmute DAC
   }
 
-  // Synthesize a bamboo marimba / chime note with exponential decay
-  static void _synthTone(float freqHz, uint32_t durationMs, float volume = 0.35f, float pitchSlide = 0.0f) {
-    if (!_ready || !_txHandle) return;
-    uint32_t totalSamples = (SAMPLE_RATE * durationMs) / 1000;
+  // Stream authentic 16kHz 16-bit mono PCM clip from Flash (PROGMEM),
+  // immediately preempting if a newer SFX arrives in _sfxQueue.
+  static void _playPcm(const int16_t* pcm, size_t totalSamples) {
+    if (!_ready || !_txHandle || !pcm || totalSamples == 0) return;
+
+    // Enable PA (GPIO 46 HIGH) only during active playback
+    digitalWrite(AUDIO_PA_PIN, HIGH);
+
     int16_t buf[256];
-    uint32_t pos = 0;
-    float phase = 0.0f;
-
+    size_t pos = 0;
     while (pos < totalSamples) {
-      uint32_t chunk = totalSamples - pos;
-      if (chunk > 256) chunk = 256;
-
-      for (uint32_t i = 0; i < chunk; ++i) {
-        float t = (float)(pos + i) / (float)totalSamples;
-        float env = expf(-4.5f * t);
-        float curFreq = freqHz + pitchSlide * t;
-        phase += (2.0f * 3.14159265f * curFreq) / (float)SAMPLE_RATE;
-        if (phase > 6.2831853f) phase -= 6.2831853f;
-        float wave = 0.80f * sinf(phase) + 0.20f * sinf(phase * 3.0f);
-        buf[i] = (int16_t)(wave * env * volume * 32767.0f);
+      if (uxQueueMessagesWaiting(_sfxQueue) > 0) {
+        return; // Preempt immediately for newer SFX (PA stays HIGH for next clip)
       }
-
+      size_t chunk = totalSamples - pos;
+      if (chunk > 256) chunk = 256;
+      memcpy_P(buf, pcm + pos, chunk * sizeof(int16_t));
       size_t written = 0;
       i2s_channel_write(_txHandle, buf, chunk * sizeof(int16_t), &written, pdMS_TO_TICKS(50));
       pos += chunk;
     }
+
+    // Write 128 zero samples after clip completes to prevent DAC pop
+    memset(buf, 0, 128 * sizeof(int16_t));
+    size_t written = 0;
+    i2s_channel_write(_txHandle, buf, 128 * sizeof(int16_t), &written, pdMS_TO_TICKS(20));
+
+    // Return PA (GPIO 46 strapping pin) to LOW when idle
+    if (uxQueueMessagesWaiting(_sfxQueue) == 0) {
+      digitalWrite(AUDIO_PA_PIN, LOW);
+    }
   }
 
   static void _audioTask(void*) {
-    SfxType cmd;
+    SfxType sfx;
     for (;;) {
-      if (xQueueReceive(_sfxQueue, &cmd, portMAX_DELAY) == pdTRUE) {
-        switch (cmd) {
+      if (xQueueReceive(_sfxQueue, &sfx, portMAX_DELAY) == pdTRUE) {
+        // Drain any older queued events so only the newest triggered SFX plays
+        while (uxQueueMessagesWaiting(_sfxQueue) > 0) {
+          xQueueReceive(_sfxQueue, &sfx, 0);
+        }
+        switch (sfx) {
+          case SfxType::INTRO_AMBIENT:
+            _playPcm(SFX_PCM_INTRO, SFX_PCM_INTRO_LEN);
+            break;
           case SfxType::SPIN_START:
-            _synthTone(523.25f, 45, 0.30f);
-            _synthTone(587.33f, 45, 0.30f);
-            _synthTone(659.25f, 45, 0.32f);
-            _synthTone(783.99f, 50, 0.35f);
-            _synthTone(880.00f, 70, 0.38f);
+            _playPcm(SFX_PCM_SPIN, SFX_PCM_SPIN_LEN);
             break;
-
-          case SfxType::REEL_TICK:
-            _synthTone(920.0f, 10, 0.16f, -300.0f);
+          case SfxType::REEL_STOP:
+            _playPcm(SFX_PCM_STOP, SFX_PCM_STOP_LEN);
             break;
-
-          case SfxType::REEL_STOP_0:
-            _synthTone(220.0f, 55, 0.40f, -80.0f);
+          case SfxType::WIN_REDPANDA:
+            _playPcm(SFX_PCM_WIN_REDPANDA, SFX_PCM_WIN_REDPANDA_LEN);
             break;
-
-          case SfxType::REEL_STOP_1:
-            _synthTone(261.63f, 55, 0.40f, -80.0f);
+          case SfxType::WIN_SMALL:
+            _playPcm(SFX_PCM_WIN_SMALL, SFX_PCM_WIN_SMALL_LEN);
             break;
-
-          case SfxType::REEL_STOP_2:
-            _synthTone(329.63f, 65, 0.42f, -90.0f);
+          case SfxType::WIN_PANDA:
+          case SfxType::WIN_JACKPOT:
+            _playPcm(SFX_PCM_WIN_BIG, SFX_PCM_WIN_BIG_LEN);
             break;
-
-          case SfxType::RED_PANDA_DING:
-            _synthTone(783.99f, 50, 0.38f, 150.0f);
-            _synthTone(1046.50f, 95, 0.42f, 80.0f);
-            break;
-
-          case SfxType::WIN_SMALL: {
-            static const float notes[] = { 523.25f, 659.25f, 783.99f, 1046.50f };
-            for (int i = 0; i < 4; ++i) {
-              _synthTone(notes[i], (i == 3) ? 160 : 80, 0.38f);
-            }
-            break;
-          }
-
-          case SfxType::WIN_PANDA: {
-            static const float notes[] = {
-              523.25f, 587.33f, 659.25f, 783.99f, 880.00f, 1046.50f, 880.00f, 1046.50f
-            };
-            for (int i = 0; i < 8; ++i) {
-              _synthTone(notes[i], (i == 7) ? 220 : 85, 0.42f);
-            }
-            break;
-          }
-
-          case SfxType::WIN_JACKPOT: {
-            static const float notes[] = {
-              523.25f, 659.25f, 783.99f, 1046.50f,
-              587.33f, 783.99f, 880.00f, 1174.66f,
-              659.25f, 783.99f, 1046.50f, 1318.51f,
-              1567.98f, 1318.51f, 1567.98f, 2093.00f
-            };
-            for (int i = 0; i < 16; ++i) {
-              _synthTone(notes[i], (i == 15) ? 350 : 90, 0.45f);
-            }
-            break;
-          }
-
           default:
             break;
         }
