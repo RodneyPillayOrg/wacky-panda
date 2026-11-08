@@ -43,8 +43,16 @@ public:
         digitalWrite(TP_RST_PIN, HIGH);
         delay(50);
         Wire1.begin(TP_SDA_PIN, TP_SCL_PIN, 400000);
+        Wire1.setTimeOut(5);
         Wire1.beginTransmission(0x15);
         _cst816Present = (Wire1.endTransmission() == 0);
+        if (_cst816Present) {
+            // Disable CST816D auto-sleep (register 0xFE = 0xFF) for instant touch response
+            Wire1.beginTransmission(0x15);
+            Wire1.write(0xFE);
+            Wire1.write(0xFF);
+            Wire1.endTransmission();
+        }
         Serial.printf("[touch] CST816D I2C touchscreen (SDA=%d, SCL=%d, INT=%d): %s\n",
                       TP_SDA_PIN, TP_SCL_PIN, TP_INT_PIN,
                       _cst816Present ? "detected" : "not detected");
@@ -73,22 +81,33 @@ public:
 
     static uint16_t threshold() { return _threshold; }
     static uint16_t raw() { return _lastRaw; }
+    static void setImmediateSingleTap(bool en) { _immediateSingleTap = en; }
 
     static TouchEvent poll() {
+        unsigned long now = millis();
 #if USE_DIGITAL_BUTTON
         bool btnDown = (digitalRead(PIN_BUTTON) == LOW);
 #ifdef BOARD_SPOTPEAR_MUMA_S3
         btnDown = btnDown || (digitalRead(40) == LOW) || (digitalRead(41) == LOW);
 #endif
-        bool scrDown = false;
+        bool scrDown = _lastScrDown;
 #if HAS_CST816_TOUCH
-        if (_cst816Present) {
-            Wire1.beginTransmission(0x15);
-            Wire1.write(0x02); // Finger num register
-            if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)1) == 1) {
-                uint8_t fingers = Wire1.read() & 0x0F;
-                scrDown = (fingers > 0);
+        if (_cst816Present && (now - _lastI2cPollMs >= 5)) {
+            _lastI2cPollMs = now;
+            // Fast check: if INT pin is LOW, finger is definitely down; also verify via 0x02
+            if (digitalRead(TP_INT_PIN) == LOW) {
+                scrDown = true;
+            } else {
+                Wire1.beginTransmission(0x15);
+                Wire1.write(0x02); // Finger num register
+                if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)1) == 1) {
+                    uint8_t fingers = Wire1.read() & 0x0F;
+                    scrDown = (fingers > 0);
+                } else {
+                    scrDown = false;
+                }
             }
+            _lastScrDown = scrDown;
         }
 #endif
         bool touched = btnDown || scrDown;
@@ -97,25 +116,46 @@ public:
         _lastRaw = touchRead(PIN_TOUCH);
         bool touched = (_lastRaw != 0) && (_lastRaw < _threshold);
 #endif
-        unsigned long now = millis();
 
         if ((long)(now - _guardUntil) < 0) {
-            _wasDown = touched;
-            _taps    = 0;
+            _wasDown   = touched;
+            _longFired = false;
+            _taps      = 0;
             return TouchEvent::None;
         }
 
         if (touched && !_wasDown) {
             _wasDown    = true;
+            _longFired  = false;
             _pressStart = now;
-        } else if (!touched && _wasDown) {
-            _wasDown = false;
-            unsigned long held = now - _pressStart;
-            if (held < TOUCH_PRESS_DEBOUNCE_MS) return TouchEvent::None;
-            if (held >= TOUCH_LONG_MIN) {
+        } else if (touched && _wasDown) {
+            // Fire Long press IMMEDIATELY while held down (no need to wait for finger release!)
+            if (!_longFired && (now - _pressStart) >= 380) {
+                _longFired = true;
                 _taps = 0;
                 return TouchEvent::Long;
             }
+        } else if (!touched && _wasDown) {
+            _wasDown = false;
+            if (_longFired) {
+                _longFired = false;
+                return TouchEvent::None;
+            }
+            unsigned long held = now - _pressStart;
+#if HAS_CST816_TOUCH
+            constexpr unsigned long minDebounceMs = 5;
+#else
+            constexpr unsigned long minDebounceMs = TOUCH_PRESS_DEBOUNCE_MS;
+#endif
+            if (held < minDebounceMs) return TouchEvent::None;
+
+            // Inside Wacky Panda (_immediateSingleTap == true), fire Short tap immediately on
+            // release without waiting 200ms for a double-tap window!
+            if (_immediateSingleTap) {
+                _taps = 0;
+                return TouchEvent::Short;
+            }
+
             _taps++;
             _lastTap = now;
         }
@@ -133,7 +173,11 @@ public:
 private:
 #if HAS_CST816_TOUCH
     static inline bool _cst816Present = false;
+    static inline unsigned long _lastI2cPollMs = 0;
 #endif
+    static inline bool _lastScrDown = false;
+    static inline bool _immediateSingleTap = false;
+    static inline bool _longFired = false;
     static bool          _wasDown;
     static unsigned long _pressStart;
     static unsigned long _lastTap;

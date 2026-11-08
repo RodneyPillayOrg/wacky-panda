@@ -92,6 +92,12 @@ public:
         _lastTapCounter = 0;
         _lastFrameMs = millis();
         Sound::enterGame();
+
+        // Render initial frame immediately so menu -> game transition is instant
+        uint32_t now = _lastFrameMs;
+        Display::renderApp([this, now](TFT_eSprite& spr) {
+            _drawFrame(spr, now);
+        }, COL_JUNGLE_BG);
     }
 
     void onExit() override {
@@ -269,6 +275,7 @@ private:
                     r.state = ReelState::SETTLING;
                     r.bounceStartMs = now;
                     r.bounceOffset = 0.0f;
+                    Sound::playReelStop(); // Prominent bamboo reel-stop impact on each reel!
                 } else {
                     r.y += step;
                     if (r.y >= TOTAL_STRIP_H) r.y -= TOTAL_STRIP_H;

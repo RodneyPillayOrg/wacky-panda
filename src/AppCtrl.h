@@ -447,6 +447,7 @@ private:
         // known baseline (0). Without this the monotonic counter carried over from earlier
         // apps makes the first tap in a freshly-entered app jump to an arbitrary page.
         _tapCounter = 0;
+        Touch::setImmediateSingleTap(_apps[_current]->usesDirectDraw());
         // GuiLite-style apps (Idea, Picture) draw full-screen via the banded TFT path, not
         // LVGL. Allocate the 240x80 band for them (freed for LVGL apps). Fails safe: if the
         // band can't be had, renderApp() is a no-op and the app is simply blank, never a
@@ -454,13 +455,17 @@ private:
         Display::enableAppBand(_apps[_current]->usesDirectDraw());
         _apps[_current]->onEnter();
         _dwellStart = millis();
-        _saveCurrent();
+        if (_startupApp != _current) {
+            _startupApp = _current;
+            _saveCurrent();
+        }
         Serial.printf("[ctrl] enter app %s free=%u max=%u\n",
                       _apps[_current]->name(), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
     }
 
     // Long-press inside an app: release its resources and return to the launcher.
     void _exitToLauncher() {
+        Touch::setImmediateSingleTap(false);
         _apps[_current]->onExit();
         Display::enableAppBand(false);   // free the direct-draw band; LVGL owns the panel again
         _mode = Mode::Launcher;

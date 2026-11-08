@@ -84,9 +84,9 @@ public:
       _initEs8311Codec();
 
       _ready = true;
-      _sfxQueue = xQueueCreate(8, sizeof(SfxType));
-      xTaskCreatePinnedToCore(_audioTask, "sfx", 4096, nullptr, 2, nullptr, 0);
-      Serial.printf("[sound] ES8311 + I2S 2-channel mixer ready @ %u Hz\n", (unsigned)SAMPLE_RATE);
+      _sfxQueue = xQueueCreate(12, sizeof(SfxType));
+      xTaskCreatePinnedToCore(_audioTask, "sfx", 4096, nullptr, 1, nullptr, 0);
+      Serial.printf("[sound] ES8311 + I2S 3-voice mixer ready @ %u Hz\n", (unsigned)SAMPLE_RATE);
     }
 #endif
   }
@@ -190,14 +190,14 @@ private:
     }
   }
 
-  // Real-time 2-channel audio mixer (active ONLY inside Wacky Panda game, silent in menu/settings):
-  // - Channel 1: Soft seamless Wacky Panda bamboo forest idle ambient loop (SFX_PCM_INTRO)
-  // - Channel 2: Foreground SFX (Spin Gong + Reel Roll sustained across the spin, plus Win fanfares)
-  //   with smooth crossfades and 300ms spin-end cosine release so no sound ever cuts off abruptly.
+  // Real-time 3-voice integer audio mixer (active ONLY inside Wacky Panda, silent in menu/settings):
+  // - Voice 1: Subtle Wacky Panda bamboo forest idle ambient loop (SFX_PCM_INTRO, ~18% idle / ~8% active)
+  // - Voice 2: Foreground SFX (Spin Gong + Reel Roll sustained across the spin, plus Win fanfares)
+  // - Voice 3: Prominent, punchy Reel Stop impact (SFX_PCM_STOP) overlaid as each reel locks!
   static void _audioTask(void*) {
     bool inGame = false;
     size_t ambPos = 0;
-    float ambGain = 0.50f;
+    int32_t ambGainQ8 = 46; // 46/256 (~18%) subtle background ambient
 
     const int16_t* fgPtr = nullptr;
     size_t fgLen = 0;
@@ -205,7 +205,11 @@ private:
     bool spinActive = false;
     bool spinFadeOut = false;
     size_t spinFadePos = 0;
-    static constexpr size_t SPIN_FADEOUT_LEN = 4800; // 300ms natural decay when 3rd reel locks
+    static constexpr size_t SPIN_FADEOUT_LEN = 4000; // 250ms smooth release when 3rd reel locks
+
+    // Dedicated prominent Reel-Stop impact voice (plays on top of spin melody as each reel locks)
+    bool stopActive = false;
+    size_t stopPos = 0;
 
     // Crossfade state for seamless foreground transitions (400 samples = 25ms)
     static constexpr size_t XFADE_LEN = 400;
@@ -227,7 +231,7 @@ private:
           if (!inGame) {
             inGame = true;
             ambPos = 0;
-            ambGain = 0.10f; // Fade in ambient smoothly
+            ambGainQ8 = 46;
             digitalWrite(AUDIO_PA_PIN, HIGH);
           }
           continue;
@@ -240,6 +244,8 @@ private:
           prevFgPtr = nullptr;
           spinActive = false;
           spinFadeOut = false;
+          stopActive = false;
+          stopPos = 0;
           digitalWrite(AUDIO_PA_PIN, LOW);
           memset(mixBuf, 0, sizeof(mixBuf));
           size_t written = 0;
@@ -249,9 +255,14 @@ private:
         if (!inGame) {
           continue;
         }
+        if (cmd == SfxType::REEL_STOP) {
+          // Trigger prominent Reel-Stop impact on Voice 3 without interrupting the spin melody!
+          stopActive = true;
+          stopPos = 0;
+          continue;
+        }
         if (cmd == SfxType::SPIN_END) {
-          // 3rd reel locked on a non-winning spin: begin smooth 300ms cosine release decay
-          // so the spin gong/melody lasts the exact spin duration and decays naturally!
+          // 3rd reel locked on a non-winning spin: begin smooth 250ms release decay
           if (fgPtr == SFX_PCM_SPIN) {
             spinActive = false;
             spinFadeOut = true;
@@ -284,39 +295,43 @@ private:
         continue;
       }
 
-      const float targetAmbGain = (fgPtr != nullptr) ? 0.22f : 0.50f;
+      // Subtle background ambient: 46/256 (~18%) when idle, 20/256 (~8%) when spinning/winning
+      ambGainQ8 = (fgPtr != nullptr) ? 20 : 46;
 
       for (size_t i = 0; i < 256; ++i) {
-        // 1. Gentle Idle Bamboo Forest Ambient Sample
-        int16_t ambSample = (int16_t)pgm_read_word(&SFX_PCM_INTRO[ambPos]);
+        // 1. Subtle Idle Bamboo Forest Ambient Sample (Q8 integer math)
+        int32_t ambSample = (int16_t)pgm_read_word(&SFX_PCM_INTRO[ambPos]);
         if (++ambPos >= SFX_PCM_INTRO_LEN) {
           ambPos = 0;
         }
-        ambGain += (targetAmbGain - ambGain) * 0.0015f;
-        float mixed = (float)ambSample * ambGain;
+        int32_t mixed = (ambSample * ambGainQ8) >> 8;
 
-        // 2. Foreground SFX Sample
-        float fgSample = 0.0f;
+        // 2. Foreground SFX Sample (Spin Gong/Melody or Win Fanfare)
+        int32_t fgSample = 0;
         if (fgPtr) {
           if (spinActive && fgPtr == SFX_PCM_SPIN && fgPos >= SPIN_SUSTAIN_END) {
-            // Sustain spin roll if spin ever runs longer than 3.12s
             fgPos = SPIN_SUSTAIN_START;
           }
           if (fgPos < fgLen) {
-            fgSample = (float)((int16_t)pgm_read_word(&fgPtr[fgPos++]));
+            // Slightly duck spin melody (192/256 = 75%) while a reel-stop impact is punching through
+            int32_t rawFg = (int16_t)pgm_read_word(&fgPtr[fgPos++]);
+            if (fgPtr == SFX_PCM_SPIN && stopActive) {
+              rawFg = (rawFg * 180) >> 8;
+            }
             if (spinFadeOut) {
               if (spinFadePos < SPIN_FADEOUT_LEN) {
-                float env = 0.5f * (1.0f + cosf(3.14159265f * (float)spinFadePos / (float)SPIN_FADEOUT_LEN));
-                fgSample *= env;
+                int32_t rem = (int32_t)(SPIN_FADEOUT_LEN - spinFadePos);
+                rawFg = (rawFg * rem) / (int32_t)SPIN_FADEOUT_LEN;
                 ++spinFadePos;
               } else {
-                fgSample = 0.0f;
+                rawFg = 0;
                 fgPtr = nullptr;
                 fgLen = 0;
                 fgPos = 0;
                 spinFadeOut = false;
               }
             }
+            fgSample = rawFg;
           } else {
             fgPtr = nullptr;
             fgLen = 0;
@@ -328,15 +343,28 @@ private:
 
         // 3. Smooth 25ms Crossfade from previous foreground sound if preempted
         if (xfadePos < XFADE_LEN && prevFgPtr && prevFgPos < prevFgLen) {
-          float t = (float)xfadePos / (float)XFADE_LEN;
-          float prevSample = (float)((int16_t)pgm_read_word(&prevFgPtr[prevFgPos++]));
-          fgSample = prevSample * (1.0f - t) + fgSample * t;
+          int32_t prevSample = (int16_t)pgm_read_word(&prevFgPtr[prevFgPos++]);
+          int32_t wNew = (int32_t)xfadePos;
+          int32_t wOld = (int32_t)(XFADE_LEN - xfadePos);
+          fgSample = (prevSample * wOld + fgSample * wNew) / (int32_t)XFADE_LEN;
           ++xfadePos;
         } else {
           prevFgPtr = nullptr;
         }
 
-        int32_t outVal = (int32_t)(mixed + fgSample);
+        // 4. Prominent Reel-Stop Impact Voice (115% boost = 294/256)
+        int32_t stopSample = 0;
+        if (stopActive) {
+          if (stopPos < SFX_PCM_STOP_LEN) {
+            int32_t rawStop = (int16_t)pgm_read_word(&SFX_PCM_STOP[stopPos++]);
+            stopSample = (rawStop * 294) >> 8;
+          } else {
+            stopActive = false;
+            stopPos = 0;
+          }
+        }
+
+        int32_t outVal = mixed + fgSample + stopSample;
         if (outVal > 32767)  outVal = 32767;
         if (outVal < -32768) outVal = -32768;
         mixBuf[i] = (int16_t)outVal;
