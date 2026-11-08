@@ -7,10 +7,18 @@
 #endif
 
 #ifndef PIN_BUTTON
-#define PIN_BUTTON 0 // Default GPIO0 (BOOT / User button on Xiaozhi ESP32-S3 boards)
+#define PIN_BUTTON 0 // GPIO0 (BOOT button on Spotpear ESP32-S3 1.54" MUMA)
 #endif
 
-// Capacitive touch / physical button handler.
+#ifndef HAS_CST816_TOUCH
+#define HAS_CST816_TOUCH 0
+#endif
+
+#if HAS_CST816_TOUCH
+#include <Wire.h>
+#endif
+
+// Capacitive touch / CST816D touchscreen / physical button handler.
 // short click  -> next app / spin / quick-stop
 // double click -> previous app / quick-stop
 // long press   -> enter / exit app
@@ -23,6 +31,20 @@ public:
         pinMode(PIN_BUTTON, INPUT_PULLUP);
         _threshold = 0;
         Serial.printf("[touch] digital button configured on GPIO %d (active LOW)\n", PIN_BUTTON);
+#if HAS_CST816_TOUCH
+        pinMode(TP_INT_PIN, INPUT_PULLUP);
+        pinMode(TP_RST_PIN, OUTPUT);
+        digitalWrite(TP_RST_PIN, LOW);
+        delay(10);
+        digitalWrite(TP_RST_PIN, HIGH);
+        delay(50);
+        Wire1.begin(TP_SDA_PIN, TP_SCL_PIN, 400000);
+        Wire1.beginTransmission(0x15);
+        _cst816Present = (Wire1.endTransmission() == 0);
+        Serial.printf("[touch] CST816D I2C touchscreen (SDA=%d, SCL=%d, INT=%d): %s\n",
+                      TP_SDA_PIN, TP_SCL_PIN, TP_INT_PIN,
+                      _cst816Present ? "detected" : "not detected");
+#endif
 #else
         uint16_t baseline = 0;
         for (int i = 0; i < 16; i++) {
@@ -46,8 +68,20 @@ public:
 
     static TouchEvent poll() {
 #if USE_DIGITAL_BUTTON
-        _lastRaw = (uint16_t)digitalRead(PIN_BUTTON);
-        bool touched = (_lastRaw == LOW);
+        bool btnDown = (digitalRead(PIN_BUTTON) == LOW);
+        bool scrDown = false;
+#if HAS_CST816_TOUCH
+        if (_cst816Present) {
+            Wire1.beginTransmission(0x15);
+            Wire1.write(0x02); // Finger num register
+            if (Wire1.endTransmission(false) == 0 && Wire1.requestFrom((uint8_t)0x15, (uint8_t)1) == 1) {
+                uint8_t fingers = Wire1.read() & 0x0F;
+                scrDown = (fingers > 0);
+            }
+        }
+#endif
+        bool touched = btnDown || scrDown;
+        _lastRaw = touched ? 0 : 1;
 #else
         _lastRaw = touchRead(PIN_TOUCH);
         bool touched = (_lastRaw != 0) && (_lastRaw < _threshold);
@@ -86,6 +120,9 @@ public:
     }
 
 private:
+#if HAS_CST816_TOUCH
+    static inline bool _cst816Present = false;
+#endif
     static bool          _wasDown;
     static unsigned long _pressStart;
     static unsigned long _lastTap;

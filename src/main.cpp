@@ -103,6 +103,11 @@ static void displayStatusFor(const char* msg, uint32_t ms, const char* line2 = "
 size_t getArduinoLoopTaskStackSize(void) { return 16384; }
 
 void setup() {
+#ifdef POWER_LATCH_PIN
+    // Spotpear ESP32-S3 1.54" MUMA battery power hold pin (GPIO 3 HIGH)
+    pinMode(POWER_LATCH_PIN, OUTPUT);
+    digitalWrite(POWER_LATCH_PIN, HIGH);
+#endif
     Serial.begin(115200);
     delay(200);
 
